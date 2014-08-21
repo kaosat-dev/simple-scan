@@ -5,7 +5,8 @@
   "dependencies": {
     "platform": "Polymer/platform#master",
     "polymer": "Polymer/polymer#master",
-    "socket-io":"kaosat-dev/socket-io"
+    "socket-io":"kaosat-dev/socket-io",
+    "three-js": "usco/polymer-three-js"
   },
   "ignore": [
     "specs/"

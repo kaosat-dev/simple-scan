@@ -17,14 +17,25 @@ setInterval(function() {
 }, 500);*/
 
 //////////////////////////
+
+
 //serial stuff
-var serialport = require("serialport");
-var SerialPort = serialport.SerialPort
+var serialPort = require("serialport");
+var SerialPort = serialPort.SerialPort
+
+//list ports
+serialPort.list(function (err, ports) {
+  ports.forEach(function(port) {
+    console.log(port.comName);
+    console.log(port.pnpId);
+    console.log(port.manufacturer);
+  });
+});
 
 var serial = new SerialPort("/dev/ttyACM1", {
   baudrate: 9600,
-  parser: serialport.parsers.raw
-});
+  parser: serialPort.parsers.raw
+},false);
 
 //////////////////////////
 
@@ -52,6 +63,10 @@ io.sockets.on('connection', function (socket) {
   });
 
   ///////////////////////////////////
+  socket.on('connectToScanner', function (data) {
+    console.log("SERVER recieved connect",data);
+    serial.open();
+  });
 
   //video frame recieved
   socket.on('frame',function (data) {
@@ -60,17 +75,13 @@ io.sockets.on('connection', function (socket) {
     cv.readImage(new Buffer(data, 'base64'), function(err, im) {
         console.log('errOpenCV ' + err);
         /*im.detectObject("./node_modules/opencv/data/haarcascade_eye.xml", {}, function(err, ojos) {
-
-
         });*/
-
         im.detectObject("./node_modules/opencv/data/haarcascade_frontalface_alt.xml", {}, function(err, faces){  
  
 					for (var i=0;i<faces.length; i++){
 						var x = faces[i];
 						im.ellipse(x.x + x.width/2, x.y + x.height/2, x.width/2, x.height/2);
 					}
-
 					im.save('./out.png');   
 		});
 
@@ -200,22 +211,19 @@ socket.on('toggleStepper',function (data) {
 #define TURNTABLE_STEPPER   10*/
 
 
+serial.on('error', function(error){
 
+  console.log("failed to open serial port");
+});
 
 serial.on("open", function () {
   console.log('serial open');
-
+  console.log("here");
 
   serial.on('data', function(data) {
     console.log(data);
-    //var encoded = new Buffer(data, 'binary').toString('utf8');
-    //console.log(encoded);
   });
 
-  /*serial.write(211, function(err, results) {
-    console.log('err ' + err);
-    console.log('results ' + results);
-  });*/
 
 });
 

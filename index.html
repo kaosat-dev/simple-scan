@@ -32,6 +32,7 @@
                 </select>
                 Serial<select>
                 </select>
+                <input type="button" id="connect" value="connect" on-tap="{{connect}}"> </input>
                 <div>
                 Laser toggle<input type="checkbox" id="laserToggler" alt="laserToggler" checked="{{laserToggled}}"></input>
                 Laser angle <input type="text" id="laserAngle" alt="laserAngle" value="{{laserAngle}}°"></input>
@@ -39,7 +40,6 @@
                 </div>
                 <div>
                 Frame sending <input type="checkbox" id="frameToggler" alt="frameToggler" checked="{{sendFrames}}"></input>
-
                 </div>
                 <div>
                  Rotate:
@@ -152,6 +152,9 @@ ctx.drawImage(video, 0, 0, 640, 480);
                     this.sendMessage({event:"toggleStepper", data: this.stepperToggled});
                 },
                 //public api
+                connect:function(){
+                  this.sendMessage({event:"connectToScanner",data:null});
+                },
                 rotateCW:function()
                 {
                     this.sendMessage({event:"rotate", data: {direction:"CW"}});
