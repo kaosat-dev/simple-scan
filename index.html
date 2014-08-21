@@ -43,9 +43,11 @@
                 </div>
                 <div>
                  Rotate:
-                    <input type="button" id="rotateCW" value="rotate cw" on-tap="{{rotateCW}}"> </input>
-                   <input type="button" id="rotateCCW" value="rotate ccw" on-tap="{{rotateCCW}}"> </input>
+                    <input type="button" id="rotateCW" value="rotate cw" on-tap="{{rotateCW}}" disabled?="{{!stepperToggled}}"> </input>
+                   <input type="button" id="rotateCCW" value="rotate ccw" on-tap="{{rotateCCW}}" disabled?="{{!stepperToggled}}"> </input>
                    <input type="checkbox" id="stepperToggler" alt="laserToggler" checked="{{stepperToggled}}"></input>
+                   <input type="number" id="stepsToRotate" alt="stepsToRotate" value="{{stepsToRotate}}" placeholder="steps to rotate"></input>
+                   <input type="number" id="angleToRotate" alt="angleToRotate" value="{{angleToRotate}}" placeholder="angle to rotate"></input>
                 </div>
             </div>
 
@@ -70,6 +72,9 @@
                 stepperToggled:false,
                 //
                 laserAngle:0,
+                stepsToRotate:10,
+                angleToRotate:10,
+                _stepsPerRevo:400,//how many steps per full rotation
 
                 enteredView:function(){
                    var self = this;
@@ -109,10 +114,6 @@ ctx.drawImage(video, 0, 0, 640, 480);
 
                     });
 
-
-
-    
-                    // Marco de Cara
                     /*ctx.beginPath();
                     ctx.rect(cara.x, cara.y, cara.width, cara.height);
                     ctx.fillStyle = 'rgba(46, 166, 203, 0.5)';
@@ -120,7 +121,6 @@ ctx.drawImage(video, 0, 0, 640, 480);
                     ctx.lineWidth = 2;
                     ctx.strokeStyle = '#2ba6cb';
                     ctx.stroke();
-                    // Marco de ojos
                     if (cara.ojos) {
                       for (var ojo in cara.ojos) {
                         ojo = cara.ojos[ojo];
@@ -150,6 +150,17 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 {
                     console.log("stepper is", this.stepperToggled);
                     this.sendMessage({event:"toggleStepper", data: this.stepperToggled});
+                },
+                stepsToRotateChanged:function(){
+                    this.sendMessage({event:"stepsToRotate",data:this.stepsToRotate});
+                    //update angle accordingly
+                    var converted = this.stepsToRotate/this._stepsPerRevo*360; //stepsPerRevo == 360
+                    if(converted != this.angleToRotate) this.angleToRotate = converted;
+                },
+                angleToRotateChanged:function(){
+                    this.sendMessage({event:"angleToRotate",data:this.angleToRotate});
+                    var converted = this.angleToRotate*this._stepsPerRevo/360; 
+                    if(converted != this.stepsToRotate) this.stepsToRotate = converted;
                 },
                 //public api
                 connect:function(){

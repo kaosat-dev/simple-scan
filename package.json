@@ -6,7 +6,9 @@
   "author": "kaosat-dev",
   "license": "GPLV3",
   "dependencies": {
+    "express": "^4.8.5",
     "opencv": "^0.5.0",
+    "q": "^1.0.1",
     "serialport": "^1.4.5",
     "socket.io": ""
   }

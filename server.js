@@ -1,4 +1,4 @@
-
+var express    = require('express'); 		// call express
 var io = require('socket.io').listen(8082);
 var cv = require('opencv');
 
@@ -16,6 +16,13 @@ setInterval(function() {
 
 }, 500);*/
 
+var app        = express(); 				// define our app using express
+var port = process.env.PORT || 8080; 		// set our port
+
+app.use(express.static("./"));
+/*app.get('/', function(req, res) {
+    res.sendfile('./index.html');
+});*/
 //////////////////////////
 
 
@@ -23,8 +30,10 @@ setInterval(function() {
 var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort
 
+var serialPorts = []
 //list ports
 serialPort.list(function (err, ports) {
+  serialPorts = ports;
   ports.forEach(function(port) {
     console.log(port.comName);
     console.log(port.pnpId);
@@ -32,7 +41,7 @@ serialPort.list(function (err, ports) {
   });
 });
 
-var serial = new SerialPort("/dev/ttyACM1", {
+var serial = new SerialPort("/dev/ttyACM0", {
   baudrate: 9600,
   parser: serialPort.parsers.raw
 },false);
@@ -41,6 +50,14 @@ var serial = new SerialPort("/dev/ttyACM1", {
 
 var clientsMap = {};
 
+//////////////////////////
+var turnTableSteps = 10;
+var cameraDistance = 200;
+var cameraLaserAngle = 75;
+var x = d*tan(theta);
+
+
+//////////////////////////
 
 io.sockets.on('connection', function (socket) {
   console.log("connected ",socket.id);
@@ -129,6 +146,10 @@ socket.on('toggleStepper',function (data) {
 
   });
 
+  socket.on('stepsToRotate',function (data) {
+    turnTableSteps = data;
+  });
+
 
   socket.on('rotate',function (data) {
     console.log("SERVER rotating platform ",data);
@@ -139,16 +160,18 @@ socket.on('toggleStepper',function (data) {
             console.log('err3 ' + err);
             console.log('sent ' + results);
           });
-        serial.write(new Buffer([202]), function(err, results) {
+        serial.write(new Buffer([202,turnTableSteps]), function(err, results) {
             console.log('err3 ' + err);
             console.log('sent ' + results);
+            
+
           });
     }else{
         serial.write(new Buffer([204]), function(err, results) {
             console.log('err3 ' + err);
             console.log('sent ' + results);
           });
-        serial.write(new Buffer([202]), function(err, results) {
+        serial.write(new Buffer([202,turnTableSteps]), function(err, results) {
             console.log('err3 ' + err);
             console.log('sent ' + results);
           });
@@ -212,18 +235,16 @@ socket.on('toggleStepper',function (data) {
 
 
 serial.on('error', function(error){
-
   console.log("failed to open serial port");
 });
-
 serial.on("open", function () {
   console.log('serial open');
   console.log("here");
-
   serial.on('data', function(data) {
     console.log(data);
   });
-
-
 });
 
+
+app.listen(port);
+console.log('Magic happens on port ' + port);
