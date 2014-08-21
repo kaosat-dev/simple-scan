@@ -1,0 +1,180 @@
+<html>
+<head>
+   <script src="components/platform/platform.js"></script>
+   <link rel="import" href="components/polymer/polymer.html">
+   <link rel="import" href="components/socket-io/socket-io.html">
+</head>
+<body>
+
+     <polymer-element name="simple-scan">
+        <template>
+            <style>
+                #video{
+                display: none;}
+                #videoCanvas{
+                    width:30%;
+                }
+            </style>
+            <video id="video" width="640" height="480" autoplay></video>
+            <canvas id="videoCanvas" width="640" height="480"></canvas>
+            <!--<img id="img" src="./cam.png" alt="camera view"></img>-->
+
+            <div>
+            </div>
+
+            <div>
+                <input type="button" id="startScan" value="Start scan" on-tap="{{startScan}}"> </input>
+            </div>
+
+            <div>Options<br>
+                Camera<select>
+
+                </select>
+                Serial<select>
+                </select>
+                <div>
+                Laser toggle<input type="checkbox" id="laserToggler" alt="laserToggler" checked="{{laserToggled}}"></input>
+                Laser angle <input type="text" id="laserAngle" alt="laserAngle" value="{{laserAngle}}°"></input>
+                <input type="button" id="detectLaser" value="Detect laser" on-tap="{{detectLaser}}"> </input>
+                </div>
+                <div>
+                Frame sending <input type="checkbox" id="frameToggler" alt="frameToggler" checked="{{sendFrames}}"></input>
+
+                </div>
+                <div>
+                 Rotate:
+                    <input type="button" id="rotateCW" value="rotate cw" on-tap="{{rotateCW}}"> </input>
+                   <input type="button" id="rotateCCW" value="rotate ccw" on-tap="{{rotateCCW}}"> </input>
+                   <input type="checkbox" id="stepperToggler" alt="laserToggler" checked="{{stepperToggled}}"></input>
+                </div>
+            </div>
+
+            <socket-io socketUrl="http://localhost:8082" 
+               connected=true listenTo=["message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+             </socket-io>
+        </template>
+        <script>
+            Polymer("simple-scan", {
+                outEventName: "message",
+                inMessage: "",
+                outMessage: "",
+                connected: false,
+                messages: [],
+                clients: {},
+
+                sendFrames:false,
+                //
+                fps : 24,
+                //
+                laserToggled:false,
+                stepperToggled:false,
+                //
+                laserAngle:0,
+
+                enteredView:function(){
+                   var self = this;
+                   var video = self.$.video 
+                   var canvas = self.$.videoCanvas;
+                   var rotate = 180;
+                   var zoom = 1;
+                    self.canvas = canvas;
+    
+                   /*setInterval(function() {
+                      self.$.img.src = "./cam.png"+"?time="+new Date().getTime();
+                    }, 500);*/
+                    navigator.getUserMedia = ( navigator.getUserMedia ||
+                       navigator.webkitGetUserMedia ||
+                       navigator.mozGetUserMedia ||
+                       navigator.msGetUserMedia);
+
+                   
+
+                    navigator.getUserMedia({ video: true, audio: false }, function(stream) {
+                      video.src = window.URL.createObjectURL(stream);
+                    }, function (err) { console.error(err); });
+
+                    var ctx = self.$.videoCanvas.getContext('2d');
+
+                    
+                    mainTimer = setInterval(function () {
+
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.translate(canvas.width * 0.5, canvas.height * 0.5);
+                    ctx.rotate(rotate * Math.PI / 180);
+                    ctx.scale(zoom, zoom);
+                    ctx.translate(-canvas.width * 0.5, -canvas.height * 0.5);
+ctx.drawImage(video, 0, 0, 640, 480);
+                    if(self.sendFrames)self.sendMessage({event:"frame", data: canvas.toDataURL("image/jpeg")});
+
+                    });
+
+
+
+    
+                    // Marco de Cara
+                    /*ctx.beginPath();
+                    ctx.rect(cara.x, cara.y, cara.width, cara.height);
+                    ctx.fillStyle = 'rgba(46, 166, 203, 0.5)';
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#2ba6cb';
+                    ctx.stroke();
+                    // Marco de ojos
+                    if (cara.ojos) {
+                      for (var ojo in cara.ojos) {
+                        ojo = cara.ojos[ojo];
+                        ctx.beginPath();
+                        ctx.rect(ojo.x, ojo.y, ojo.width, ojo.height);
+                        ctx.fillStyle = 'transparent';
+                        ctx.fill();
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                      }
+                    }*/
+
+                },
+                inMessageChanged:function(){
+                    console.log("inMessage", this.inMessage);
+                },
+                sendMessage:function(cmd){
+                    this.outMessage = cmd;
+                },
+                //attribute change handlers
+                laserToggledChanged:function()
+                {
+                    console.log("laser is", this.laserToggled);
+                    this.sendMessage({event:"toggleLaser", data: this.laserToggled});
+                },
+                stepperToggledChanged:function()
+                {
+                    console.log("stepper is", this.stepperToggled);
+                    this.sendMessage({event:"toggleStepper", data: this.stepperToggled});
+                },
+                //public api
+                rotateCW:function()
+                {
+                    this.sendMessage({event:"rotate", data: {direction:"CW"}});
+                },
+                rotateCCW:function()
+                {
+                    this.sendMessage({event:"rotate", data: {direction:"CCW"}});
+                },
+                startScan:function()
+                {
+                    console.log("startScan");
+                    //this.sendMessage({event:"rotate", data: {direction:"CCW"}});
+                },
+                detectLaser:function(){
+                    console.log("detectLaser");
+                    this.sendMessage({event:"detectLaser", data: canvas.toDataURL("image/jpeg")});
+                }
+            });
+        </script>
+     </polymer-element>
+
+
+    
+    <simple-scan></simple-scan>
+</body>
+</html>
