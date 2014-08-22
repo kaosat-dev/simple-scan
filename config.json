@@ -1,0 +1,38 @@
+{
+  "framing":{
+    "UPPER_ANALYZING_FRAME_LIMIT" : 0,
+    "LOWER_ANALYZING_FRAME_LIMIT" : 30
+    "ANALYZING_LASER_OFFSET" : 90
+    "ORIGIN_Y": 0.75
+  },
+  
+  camera:{
+    FRAME_WIDTH : 26.6,
+    CAM_IMAGE_WIDTH : 1280.0,
+    CAM_IMAGE_HEIGHT : 960.0,
+  },
+  hardware:{
+    LASER_POS_X : 14.0,
+    LASER_POS_Y : 6.4,
+    LASER_POS_Z : 28.8,
+    LASER_SWIPE_MIN : 18.0,
+    LASER_SWIPE_MAX : 52.0,
+
+    CAM_POS_X : 0.0,
+    CAM_POS_Y : 5.57,
+    CAM_POS_Z : 30.9,
+
+    TURNTABLE_POS_X : 0.0f //not used by calculations
+    TURNTABLE_POS_Y : 0.0f //not used by calculations
+    TURNTABLE_POS_Z : 7.5f //precise by construction
+  }
+}
+
+    
+
+    
+
+   
+
+
+

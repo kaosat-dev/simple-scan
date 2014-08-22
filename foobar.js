@@ -92,7 +92,7 @@ var offline = Q.async(function*() {
 
 })
 
-
+//////////////////////////
 
 var online = Q.async(function*() {
     console.log("start");
@@ -102,25 +102,28 @@ var online = Q.async(function*() {
       parser: serialPort.parsers.raw
     },false);
 
-
+    //send command to arduino, wait for ack
     function sendCommand(command)
     {
       var deferred = Q.defer();
       var callback = function(response) {
-        console.log("waiting for data", response, response.toJSON());
+        //console.log("waiting for data", response, response.toJSON());
             if (response.toJSON()[0] == 213) {
-              console.log("oh yeah");
+              //console.log("oh yeah");
                 // This is our frame's response. Resolve the promise.
                 deferred.resolve("ok");
             }
+            else if (response.toJSON()[0] == 211) {
+              deferred.resolve("ok");
+            }
       };
-
       serial.on("data", callback);
-      console.log("sending command");
+      //console.log("sending command");
       serial.write( new Buffer(command) );
-      console.log("waiting for response to command");
+      //console.log("waiting for response to command");
       return deferred.promise; 
     }
+
 
     var serialConnect = Q.nbind(serial.open, serial);
     var serialWrite   = Q.nbind(serial.write, serial);
@@ -128,9 +131,7 @@ var online = Q.async(function*() {
     var readCamera    = Q.nbind(camera.read, camera);
 
     yield serialConnect();
-    //serialOn("data").then(function(bla){console.log("bla",bla)});
-    //var ack = yield serialOn("data");
-    //console.log("serial connected", ack);
+    console.log("serial connected");
     yield sleep(500);
 
     yield readCamera();
@@ -170,33 +171,47 @@ var online = Q.async(function*() {
     var totalScans = scanRange/scanEvery;
     console.log("turnTableSteps",turnTableSteps,"totalScans",totalScans);
     
+    //make sure laser is off
+    yield sendCommand([200]);
     //turn stepper on 
     yield sendCommand([205]);
     //set clockwise
     yield sendCommand([203]);
-    for(var i=startAngle;i<scanRange;i+=scanEvery)
+    for(var i=0;i<scanRange;i+=scanEvery)
     {
-      yield readCamera();
+      yield sendCommand([200]);
+      yield readCamera();//empty buffer?
       var im = yield readCamera();
-      //yield sleep(200);
+      yield sleep(200);
       im.rotate(180);
       im.save(outputFolder+'/camNoLaser'+i+'.png');
+
       yield sendCommand([201]);
+      yield readCamera();//empty buffer?
+      yield sleep(200);
+      var im2 = yield readCamera();
+      im2.rotate(180);
+      im2.save(outputFolder+'/camLaser'+i+'.png');
 
-      yield readCamera();
-      var im = yield readCamera();
-      //yield sleep(200);
-      im.rotate(180);
-      im.save(outputFolder+'/camLaser'+i+'.png');
-      yield sendCommand([200]);
+      //process images
+      var diff = new cv.Matrix(im.width(), im.height());
+      diff.absDiff(im, im2);
+
+      var lower_threshold = [46, 0, 0];
+      var upper_threshold = [150, 196, 255];
+      diff.inRange(lower_threshold, upper_threshold);
+      diff.save(outputFolder+'/camDiff'+i+'.png');
 
 
+      //turn the table
       yield sendCommand([202,turnTableSteps]);
       currentAngle+= i;
     }
 
     //turn stepper off 
     yield sendCommand([206]);
+    //make sure laser is off
+    yield sendCommand([200]);
 
     console.log("done with scan");
 
