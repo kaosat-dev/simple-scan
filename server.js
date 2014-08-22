@@ -54,7 +54,7 @@ var clientsMap = {};
 var turnTableSteps = 10;
 var cameraDistance = 200;
 var cameraLaserAngle = 75;
-var x = d*tan(theta);
+//var x = d*tan(theta);
 
 
 //////////////////////////
@@ -241,7 +241,7 @@ serial.on("open", function () {
   console.log('serial open');
   console.log("here");
   serial.on('data', function(data) {
-    console.log(data);
+    console.log(data.toJSON());
   });
 });
 
