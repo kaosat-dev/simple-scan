@@ -11,7 +11,10 @@
     "three-js-helpers": "usco/three-js-helpers",
     "core-icons": "Polymer/core-icons#~0.3.5",
     "core-iconset-svg": "Polymer/core-iconset-svg#~0.3.5",
-    "core-dropdown": "Polymer/core-dropdown#~0.3.5"
+    "core-dropdown": "Polymer/core-dropdown#~0.3.5",
+    "paper-tabs": "Polymer/paper-tabs#~0.3.5",
+    "paper-input": "Polymer/paper-input#~0.3.5",
+    "paper-checkbox": "Polymer/paper-checkbox#~0.3.5"
   },
   "ignore": [
     "specs/"
