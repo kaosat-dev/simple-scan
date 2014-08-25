@@ -14,9 +14,15 @@
     "core-dropdown": "Polymer/core-dropdown#~0.3.5",
     "paper-tabs": "Polymer/paper-tabs#~0.3.5",
     "paper-input": "Polymer/paper-input#~0.3.5",
-    "paper-checkbox": "Polymer/paper-checkbox#~0.3.5"
+    "paper-checkbox": "Polymer/paper-checkbox#~0.3.5",
+    "paper-menu-button": "Polymer/paper-menu-button#~0.3.5"
   },
   "ignore": [
     "specs/"
-  ]
+  ],
+  "resolutions": {
+    "platform": "master",
+    "polymer": "master",
+    "core-component-page": "master"
+  }
 }

@@ -1,0 +1,105 @@
+:host {
+  /* Note: by default elements are always display:inline. */
+  display: block;
+}
+
+#video{
+  display: none;}
+#videoCanvas{
+} 
+
+three-js {
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 90%;
+  left: 0;
+  top: 35px;
+  z-index: 9;
+  background-color:white;
+  outline: none;
+}
+
+#perspectiveView{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      z-index:1;
+    }
+
+
+/*styling of core/paper polymer elements*/
+core-toolbar /deep/ .toolbar-tools {
+  position: relative;
+  height: 34px;
+  padding: 0px 8px;
+  pointer-events: none;
+}    
+
+core-toolbar /deep/ .toolbar-tools > * {
+  margin: 0px 1px;
+}
+
+core-toolbar {
+  height:34px;
+  background: #fff;
+}
+
+core-toolbar /deep/ core-icon {
+    color:#1CB9EB; /*#a4c639;*/
+    width: 24px;
+    height: 24px;
+  }
+  
+core-toolbar /deep/ core-icon:hover {
+  color: #ffc639;
+}
+  
+
+core-toolbar /deep/ paper-button[autofocus] {
+  color: #4285f4;
+}
+
+paper-dialog {
+  width: 50%;
+  min-width: 430px;
+}
+
+paper-tabs{
+  z-index:10;
+}
+
+:host /deep/ paper-input{
+  width:100%;
+  padding: 10px 10px 10px 0;
+}
+
+paper-input /deep/ #floatedlabel {
+  color:#1CB9EB;
+}
+
+paper-checkbox.blue::shadow #checkbox.checked {
+  border-color: #1CB9EB;
+}
+ paper-checkbox {
+  padding: 10px 10px 10px 0;
+}
+
+#settings{
+position:absolute;z-index:10;right:10px;top:40px;width:300px;background:#fff;
+}
+
+:host /deep/ core-dropdown.narrow {
+      max-width: 100px;
+    }
+
+
+paper-menu-button /deep/ paper-item{
+  font-size: 13px;
+}
+
+paper-menu-button /deep/ span{
+  font-size: 13px;
+}
+

@@ -46,6 +46,11 @@ var serial = new SerialPort("/dev/ttyACM0", {
   parser: serialPort.parsers.raw
 },false);
 
+
+//status
+var serialConnected = false;
+var laserOn  = false;
+var stepperOn = false;
 //////////////////////////
 
 var clientsMap = {};
@@ -61,9 +66,9 @@ var cameraLaserAngle = 75;
 
 io.sockets.on('connection', function (socket) {
   console.log("connected ",socket.id);
-
   clientsMap[socket.id] = {};
   socket.emit('userChanged',clientsMap); //send users list on connection
+  socket.emit('status',{"serialConnected": serialConnected,laserOn:laserOn,stepperOn:stepperOn,serialPorts:serialPorts});
 
   socket.on('message', function (data) {
     console.log("SERVER recieved message",data);
@@ -83,6 +88,7 @@ io.sockets.on('connection', function (socket) {
   socket.on('connectToScanner', function (data) {
     console.log("SERVER recieved connect",data);
     serial.open();
+    serialConnected = true;
   });
 
   //video frame recieved
@@ -108,7 +114,7 @@ io.sockets.on('connection', function (socket) {
 
   socket.on('toggleLaser',function (data) {
     console.log("SERVER toggling laser ",data);
-
+    laserOn = data;
     if(data)
     {
          serial.write(new Buffer([201]), function(err, results) {
@@ -128,7 +134,7 @@ io.sockets.on('connection', function (socket) {
 
 socket.on('toggleStepper',function (data) {
     console.log("SERVER toggling stepper ",data);
-
+    stepperOn = data ;
     if(data)
     {
          serial.write(new Buffer([205]), function(err, results) {
