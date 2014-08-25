@@ -5,8 +5,13 @@
   "dependencies": {
     "platform": "Polymer/platform#master",
     "polymer": "Polymer/polymer#master",
-    "socket-io":"kaosat-dev/socket-io",
-    "three-js": "usco/polymer-three-js"
+    "socket-io": "kaosat-dev/socket-io",
+    "three-js": "usco/polymer-three-js",
+    "paper-elements": "Polymer/paper-elements#~0.3.5",
+    "three-js-helpers": "usco/three-js-helpers",
+    "core-icons": "Polymer/core-icons#~0.3.5",
+    "core-iconset-svg": "Polymer/core-iconset-svg#~0.3.5",
+    "core-dropdown": "Polymer/core-dropdown#~0.3.5"
   },
   "ignore": [
     "specs/"

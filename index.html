@@ -3,8 +3,96 @@
    <script src="components/platform/platform.js"></script>
    <link rel="import" href="components/polymer/polymer.html">
    <link rel="import" href="components/socket-io/socket-io.html">
+   
+    <link rel="import" href="components/core-iconset-svg/core-iconset-svg.html">
+    <link rel="import" href="components/core-icons/core-icons.html">
+    <link rel="import" href="components/core-icons/device-icons.html">
+    <link rel="import" href="components/core-icons/hardware-icons.html">
+    
+    
+    <link rel="import" href="components/core-toolbar/core-toolbar.html">
+    <link rel="import" href="components/core-dropdown/core-dropdown.html" >
+    
+    <link rel="import" href="components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="components/paper-item/paper-item.html">
+    <link rel="import" href="components/paper-menu-button/paper-menu-button.html">
+    <link rel="import" href="components/paper-toast/paper-toast.html">
+    
+    <link rel="import" href="components/paper-dialog-transition/paper-dialog-transition.html">
+    <link href="components/paper-dialog/paper-dialog.html" rel="import">
+    
+    
+    <link rel="import" href="components/three-js/three-js.html">
+    <link rel="import" href="components/three-js-helpers/axis-helper.html">
+    <link rel="import" href="components/three-js-helpers/grid-helper.html">
+    
+    <style>
+      body{
+        margin:0px;
+        overflow:hidden;
+      }
+      
+      paper-button[autofocus] {
+      color: #4285f4;
+    }
+    
+     paper-dialog {
+      width: 50%;
+      min-width: 430px;
+    }
+
+
+three-js {
+display: block;
+position: absolute;
+width: 100%;
+height: 90%;
+left: 0;
+top: 35px;
+z-index: 9;
+background-color:white;
+outline: none;
+}
+
+ #perspectiveView{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        left: 0;
+        z-index:1;
+      }
+
+
+core-toolbar .toolbar-tools {
+position: relative;
+height: 34px;
+padding: 0px 8px;
+pointer-events: none;
+}    
+
+core-toolbar {
+  height:34px;
+}
+
+
+core-icon {
+    color:#1CB9EB; /*#a4c639;*/
+    width: 24px;
+    height: 24px;
+  }
+  
+core-icon:hover {
+    color: #ffc639;
+  }
+  
+  
+  core-toolbar .toolbar-tools > * {
+margin: 0px 1px;
+}
+    </style>
 </head>
 <body>
+
 
      <polymer-element name="simple-scan">
         <template>
@@ -12,26 +100,83 @@
                 #video{
                 display: none;}
                 #videoCanvas{
-                    width:30%;
                 }
             </style>
+            
+            
+            
+            <core-toolbar style="background: #fff;">
+    <paper-icon-button icon="menu"></paper-icon-button>
+    <span flex>Simple-scan</span>
+    <paper-icon-button icon="settings-applications"></paper-icon-button>
+    <paper-icon-button icon="file-download" disabled></paper-icon-button>
+
+    <paper-icon-button icon="device:usb" disabled>
+    </paper-icon-button>
+    
+     <core-dropdown label="" icon="device:usb" halign="right">
+    </core-dropdown>
+   
+    <paper-icon-button icon="device:bluetooth"></paper-icon-button>
+    
+    <paper-icon-button icon="drive-keep"></paper-icon-button>
+    <paper-menu-button icon="more-vert" halign="right">
+        <paper-item label="Menu Item 1"></paper-item>
+        <paper-item label="Menu Item 2"></paper-item>
+        <paper-item label="Menu Item 3"></paper-item>
+        <paper-icon-button icon="drive-keep" label="oh yeah"></paper-icon-button>
+        <paper-item label="Help"></paper-item>
+    </paper-menu-button>
+  </core-toolbar>
+
+  <paper-dialog heading="Dialog" transition="paper-dialog-transition-center" id="foo">
+ 
+
+    <paper-button label="More Info..." dismissive></paper-button>
+    <paper-button label="Decline" affirmative></paper-button>
+    <paper-button label="Accept" affirmative autofocus></paper-button>
+
+  </paper-dialog>
+            
+            
+            
             <video id="video" width="640" height="480" autoplay></video>
             <canvas id="videoCanvas" width="640" height="480"></canvas>
             <!--<img id="img" src="./cam.png" alt="camera view"></img>-->
-
             <div>
             </div>
-
             <div>
                 <input type="button" id="startScan" value="Start scan" on-tap="{{startScan}}"> </input>
             </div>
+            
+            
+             <three-js id="threeJs" 
+      selectedObject="{{selectedObject}}" selectedObjects="{{selectedObjects}}" highlightedObject="{{highlightedObject}}">
+                <three-stats id="stats" show></three-stats>
+                <tween-js></tween-js>
+                <three-js-webglRenderer id="webglRenderer"></three-js-webglRenderer>
+                <three-js-scene name="main" active pickable>
+                  <three-hemisphereLight color="0xffEEEE" gndColor="0xffEEEE" pos="[0, 0, 1500]" intensity=0.6></three-hemisphereLight>
+                  <three-ambientLight color="0x262525" intensity="3"> </three-ambientLight>
+                </three-js-scene>
+                <three-js-scene name="helper" active>
+                    <axis-helper> </axis-helper>
+                    <grid-helper> </grid-helper>
+                </three-js-scene>
+                <three-js-viewport name="perspective" id="perspectiveView">
+                  <three-js-combinedCamera pos="[100,50,200]" orientation="diagonal" up=[0,0,1]></three-js-combinedCamera>
+                  <three-js-orbitControls cameraUp=[0,0,1] autoRotate="{{autoRotate}}" autoRotateSpeed="10"> </three-js-orbitControls>
+                </three-js-viewport>
+            </three-js>
 
-            <div>Options<br>
+            <div style="position:absolute;z-index:10;right:10px;top:40px;width:300px">
+            
+            Options<br>
                 Camera<select>
-
                 </select>
                 Serial<select>
                 </select>
+                
                 <input type="button" id="connect" value="connect" on-tap="{{connect}}"> </input>
                 <div>
                 Laser toggle<input type="checkbox" id="laserToggler" alt="laserToggler" checked="{{laserToggled}}"></input>
@@ -50,6 +195,14 @@
                    <input type="number" id="angleToRotate" alt="angleToRotate" value="{{angleToRotate}}" placeholder="angle to rotate"></input>
                 </div>
             </div>
+
+            <paper-button raisedButton  label="Scan"></paper-button>
+            <paper-button raisedButton on-tap="{{showToast}}" label="Send Message" style="position:absolute;top:40px;z-index:20"></paper-button>
+            <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
+              <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
+            </paper-toast>
+            <paper-toast id="toast3" class="capsule" text="Message sent" style="padding-right: 60px;"></paper-toast>
+
 
             <socket-io socketUrl="http://localhost:8082" 
                connected=true listenTo=["message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
@@ -76,7 +229,7 @@
                 angleToRotate:10,
                 _stepsPerRevo:400,//how many steps per full rotation
 
-                enteredView:function(){
+                attached:function(){
                    var self = this;
                    var video = self.$.video 
                    var canvas = self.$.videoCanvas;
@@ -139,6 +292,13 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 },
                 sendMessage:function(cmd){
                     this.outMessage = cmd;
+                },
+                showToast:function(){
+                  //console.log("this.$.toast");//,this.$.toast3);
+                  this.$.toast2.show();
+                  this.$.foo.toggle();
+                  //this.querySelector('#toast3').show();
+                  
                 },
                 //attribute change handlers
                 laserToggledChanged:function()
