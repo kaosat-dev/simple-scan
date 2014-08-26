@@ -3,6 +3,20 @@
   display: block;
 }
 
+/*FIXME: these do not work)*/
+/*:host[unresolved]{
+  opacity:0;
+}
+
+:host :unresolved{
+  opacity:0;
+}
+
+:host[resolved]{
+  color:red;
+opacity:1;
+  }*/
+
 #video{
   display: none;}
 #videoCanvas{
@@ -18,6 +32,13 @@ three-js {
   z-index: 9;
   background-color:white;
   outline: none;
+
+  opacity: 0;
+  //transition: opacity 500ms;
+}
+
+three-js[resolved] {
+  opacity: 1;
 }
 
 #perspectiveView{
@@ -70,14 +91,22 @@ paper-tabs{
   z-index:10;
 }
 
+
+
+
 :host /deep/ paper-input{
-  width:100%;
   padding: 10px 10px 10px 0;
 }
 
 paper-input /deep/ #floatedlabel {
   color:#1CB9EB;
 }
+
+:host /deep/ input:disabled, :host /deep/ textarea:disabled{
+  color:rgb(175, 175, 175);
+
+}
+
 
 paper-checkbox.blue::shadow #checkbox.checked {
   border-color: #1CB9EB;
@@ -87,7 +116,8 @@ paper-checkbox.blue::shadow #checkbox.checked {
 }
 
 #settings{
-position:absolute;z-index:10;right:10px;top:40px;width:300px;background:#fff;
+  position:absolute;z-index:10;right:10px;top:40px;width:350px;background:#fff;
+  overflow:auto;
 }
 
 :host /deep/ core-dropdown.narrow {

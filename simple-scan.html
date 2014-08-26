@@ -6,10 +6,11 @@
 <link rel="import" href="components/core-icons/core-icons.html">
 <link rel="import" href="components/core-icons/device-icons.html">
 <link rel="import" href="components/core-icons/hardware-icons.html">
-
+<link rel="import" href="components/core-icons/image-icons.html">
 
 <link rel="import" href="components/core-toolbar/core-toolbar.html">
-<link rel="import" href="components/core-dropdown/core-dropdown.html" >
+<link rel="import" href="components/core-dropdown/core-dropdown.html">
+<link rel="import" href="components/core-tooltip/core-tooltip.html">
 
 <link rel="import" href="components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="components/paper-item/paper-item.html">
@@ -37,10 +38,18 @@
 
               <paper-icon-button icon="menu"></paper-icon-button>
               <span flex>Simple-scan</span>
-              <paper-icon-button icon="launch" on-tap="{{showToast}}"></paper-icon-button>
-              <paper-icon-button icon="settings" on-tap="{{showToast}}"></paper-icon-button>
-              <paper-icon-button icon="file-download" disabled></paper-icon-button>
-              <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
+              <core-tooltip label="Start scan">
+                <paper-icon-button icon="image:timelapse" on-tap="{{showToast}}" ></paper-icon-button>
+              </core-tooltip>
+              <core-tooltip label="Settings">
+                <paper-icon-button icon="settings" on-tap="{{showToast}}"></paper-icon-button>
+              </core-tooltip>
+              <core-tooltip label="Save scan">
+                <paper-icon-button icon="file-download" disabled></paper-icon-button>
+              </core-tooltip>
+              <core-tooltip label="Connect to scanner">
+                <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
+              </core-tooltip>
               
               <!--<core-dropdown selected="Financier" valueattr="label" icon="device:usb">
                   <core-item label="Croissant"></core-item>
@@ -53,6 +62,7 @@
               <paper-menu-button icon="more-vert" halign="right" valign="top">
                   <paper-item icon="drive-keep" label="Menu Item 1"></paper-item>
                   <paper-item icon="help"label="Help"></paper-item>
+                  <paper-item icon="about"label="About"></paper-item>
               </paper-menu-button>
 
             </core-toolbar>
@@ -69,8 +79,7 @@
             <canvas id="videoCanvas" width="640" height="480"></canvas>
             <!--<img id="img" src="./cam.png" alt="camera view"></img>-->
             
-             <three-js id="threeJs" 
-      selectedObject="{{selectedObject}}" selectedObjects="{{selectedObjects}}" highlightedObject="{{highlightedObject}}">
+             <three-js id="threeJs" unresolved>
                 <three-stats id="stats" show></three-stats>
                 <tween-js></tween-js>
                 <three-js-webglRenderer id="webglRenderer"></three-js-webglRenderer>
@@ -80,7 +89,6 @@
                 </three-js-scene>
                 <three-js-scene name="helper" active>
                     <axis-helper> </axis-helper>
-                    <grid-helper> </grid-helper>
                 </three-js-scene>
                 <three-js-viewport name="perspective" id="perspectiveView">
                   <three-js-combinedCamera pos="[100,50,200]" orientation="diagonal" up=[0,0,1]></three-js-combinedCamera>
@@ -103,22 +111,24 @@
                   <div center horizontal layout>
                     <div flex>Toggle laser</div>
                     <paper-checkbox id="laserToggler" class="blue" alt="laserToggler" checked="{{laserToggled}}"></paper-checkbox>
-                    <!--<input type="button" id="detectLaser" value="Detect laser" on-tap="{{detectLaser}}"> </input>-->
                   </div>
                   <div center horizontal layout>
                     <div flex>Laser angle</div>
                     <paper-input disabled id="laserAngle" label="Laser angle" type="text"
                     value="{{laserAngle}}°"></paper-input> 
                   </div>
+                  <div>
+                    <paper-icon-button fill id="detectLaser" label="Detect laser" icon="image:auto-fix" on-tap="{{detecLaser}}" disabled?="{{!connected}}"></paper-icon-button>
+                  </div>
                 </section>
                 <section>
-                  <h3>Platform</h3>
+                  <h3>TurnTable</h3>
                   <div center horizontal layout>
-                    <div flex>Toggle platform</div>
+                    <div flex>Toggle turnTable</div>
                     <paper-checkbox id="stepperToggler" class="blue" alt="stepperToggler" checked="{{stepperToggled}}"></paper-checkbox>
                   </div>
                   <div center horizontal layout>
-                    <div >Rotate platform</div>
+                    <div >Rotate turnTable</div>
                     <div>
                     <paper-input id="angleToRotate"  floatingLabel label="rotation angle" type="number" error="Input is not a number!"
                     value={{angleToRotate}}
@@ -139,6 +149,10 @@
                   <div center horizontal layout>
                     Camera<select></select>
                   </div>
+                  <div center horizontal layout>
+                    <div flex>Toggle camera</div>
+                    <paper-checkbox id="toggleCamera" class="blue" alt="cameraToggler" checked="{{cameraToggled}}"></paper-checkbox>
+                  </div>
 
                   <div center horizontal layout>
                     Frame sending <input type="checkbox" id="frameToggler" alt="frameToggler" checked="{{sendFrames}}"></input>
@@ -148,10 +162,9 @@
               <section>
                 <h3>Scanning</h3>
                 <div center horizontal layout>
-                  <paper-button label="Scan" on-tap="{{startScan}}"></paper-button>
+                  <paper-button label="Start Scan" icon="image:timelapse" on-tap="{{startScan}}"></paper-button>
                 </div>
               </section>            
-                
             </div>
             
             <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
@@ -162,7 +175,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
 
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" listenTo=["status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -170,9 +183,10 @@
                 outEventName: "message",
                 inMessage: "",
                 outMessage: "",
-                connected: false,
                 messages: [],
                 clients: {},
+
+                connected: false,
 
                 serialConnected:false,
                 serialPorts:[],
@@ -194,12 +208,17 @@
                 attached:function(){
                   //listen to some events
                   this.$.socketIo.addEventListener('s-io-status',this.onSIOStatus.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-connected',this.onSIOConnect.bind(this) );
                   this.$.socketIo.addEventListener('s-io-disconnected',this.onSIODisconnect.bind(this) );
                 },
                 domReady:function(){
-                  this.$.socketIo.connect();
-                  //this.$.socketIo.connected = false;
-                  //console.log("this.$.socketIo.connected",this.$.socketIo.connected);
+                  var radius   = 100,
+                      segments = 64,
+                      material = new THREE.LineBasicMaterial( { color: 0x000000 } ),
+                      geometry = new THREE.CircleGeometry( radius, segments );
+                  // Remove center vertex
+                  geometry.vertices.shift();
+                  this.$.threeJs.addToScene( new THREE.Line( geometry, material ) );
                 },
                 inMessageChanged:function(){
                     console.log("inMessage", this.inMessage);
@@ -212,7 +231,6 @@
                   this.$.toast2.show();
                   this.$.foo.toggle();
                   //this.querySelector('#toast3').show();
-                  
                 },
                 //attribute change handlers
                 laserToggledChanged:function()
@@ -244,6 +262,9 @@
                   this.laserToggled = status.laserOn;
                   this.stepperToggled = status.stepperOn;
                   this.serialPorts = status.serialPorts;
+                },
+                onSIOConnect:function(){
+                  this.connected = true;
                 },
                 onSIODisconnect:function(){
                   console.log("disconnected");
