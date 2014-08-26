@@ -142,7 +142,6 @@ Scanner.prototype.scan = function *(stepDegrees ,debug)
    //and turntable too
    yield this.turnTable.toggle(true);
 
-
     //iterate over a complete turn of the turntable
     for(i=0; i<360 && this.scanning==true; i+=stepDegrees){
 
@@ -152,7 +151,7 @@ Scanner.prototype.scan = function *(stepDegrees ,debug)
         if(debug) imNoLaser.save(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png');
         //cv::resize( laserOff,laserOff,cv::Size(1280,960) );
 
-        yield sleep(300);
+        yield sleep(150);
         //take picture with laser
         yield this.laser.turnOn();
         var imLaser = yield this.camera.read();
@@ -161,7 +160,7 @@ Scanner.prototype.scan = function *(stepDegrees ,debug)
 
         
         //here the magic happens
-        //this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0);
+        this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0);
 
         //TODO: stream data to browser
         //geometries->setPointCloudTo(model->pointCloud);

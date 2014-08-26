@@ -106,6 +106,63 @@ Vision.prototype.convertPointToCvPoint = function( point)
 }
   
 
+Vision.prototype.extractLaserLine =  function(laserOff,laserOn)
+{
+  
+  var bwLaserOff = laserOff.copy();
+  bwLaserOff.convertGrayscale();//convert to grayscale
+
+  var bwLaserOn = laserOn.copy();
+  bwLaserOn.convertGrayscale();//convert to grayscale
+
+  var diffImage = new cv.Matrix(imLaser.width(), imLaser.height());
+  diffImage.absDiff(bwLaserOn, bwLaserOff);//subtract both grayscales
+
+  var tresh2Image = diffImage.clone();
+
+  var gaussImage = diffImage.clone();
+  gaussImage.gaussianBlur([15,15]);//,cv::Size(15,15),12,12)
+
+  diffImage = diffImage.absDiff( gaussImage ); //diffImage-gaussImage
+
+  var threshold = 10;
+
+  diffImage.threshold(threshold,255,0);//cv::THRESH_TOZERO); //apply threshold
+  diffImage.erode( 3 );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
+  diffImage.canny( 20,50 );
+
+
+  var rows = laserOff.width();
+  var cols = laserOff.height();
+  /////////
+
+  var laserImage = new cv.Matrix(imLaser.width(), imLaser.height());
+
+  var edges = new cv.Matrix(1,cols);
+    //int edges[cols]; //contains the cols index of the detected edges per row
+    for(var y = 0; y <rows; y++){
+        //reset the detected edges
+        for(j=0; j<cols; j++){ edges[j]=-1; }
+        var j=0;
+        for(var x = 0; x<cols; x++){
+            if(diffImage.get(y,x)>250){
+                edges[j]=x;
+                j++;
+            }
+        }
+        //iterate over detected edges, take middle of two edges
+        for(var j=0; j<cols-1; j+=2){
+            if(edges[j]>=0 && edges[j+1]>=0 && edges[j+1]-edges[j]<40){
+                var middle = parseInt( (edges[j]+edges[j+1])/2 );
+                //qDebug() << cols << rows << y << middle;
+                laserImage.set(y,middle,255)//[255,255,255]);// = 255;//TODO: use pixel()??
+            }
+        }
+    }
+    //cv::cvtColor(laserImage, result, CV_GRAY2RGB); //convert back ro rgb
+    return result;
+}
+
 Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laserPosition)
 {
   console.log("putPointsFromFrameToCloud");
