@@ -21,8 +21,6 @@
     "specs/"
   ],
   "resolutions": {
-    "platform": "master",
-    "polymer": "master",
-    "core-component-page": "master"
+    "polymer": "master"
   }
 }

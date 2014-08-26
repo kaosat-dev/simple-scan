@@ -162,8 +162,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
 
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" 
-               connected=true listenTo=["status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://localhost:8082" listenTo=["status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -196,6 +195,11 @@
                   //listen to some events
                   this.$.socketIo.addEventListener('s-io-status',this.onSIOStatus.bind(this) );
                   this.$.socketIo.addEventListener('s-io-disconnected',this.onSIODisconnect.bind(this) );
+                },
+                domReady:function(){
+                  this.$.socketIo.connect();
+                  //this.$.socketIo.connected = false;
+                  //console.log("this.$.socketIo.connected",this.$.socketIo.connected);
                 },
                 inMessageChanged:function(){
                     console.log("inMessage", this.inMessage);
@@ -261,8 +265,6 @@
                        navigator.webkitGetUserMedia ||
                        navigator.mozGetUserMedia ||
                        navigator.msGetUserMedia);
-
-                   
 
                     navigator.getUserMedia({ video: true, audio: false }, function(stream) {
                       video.src = window.URL.createObjectURL(stream);
