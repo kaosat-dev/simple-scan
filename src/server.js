@@ -187,32 +187,7 @@ socket.on('toggleStepper',function (data) {
 
   socket.on('detectLaser',function(){
     console.log("detectLaser");
-    /* 
-        - turn off laser
-        - grab and store frame 
-        - turn on laser
-        - grab and store frame 
-
-    */
     var threshold = 40;
-    //original cpp code
-    /*unsigned int threshold = 40;
-    laser->turnOff();
-    QThread::msleep(200);
-    cv::Mat laserOffFrame = webcam->getFrame();
-    laser->turnOn();
-    QThread::msleep(200);
-    cv::Mat laserOnFrame = webcam->getFrame();
-    cv::resize( laserOnFrame,laserOnFrame,cv::Size(1280,960) );
-    cv::resize( laserOffFrame,laserOffFrame,cv::Size(1280,960) );
-
-    qDebug("images loaded, now detecting...");
-    FSPoint p = vision->detectLaserLine( laserOffFrame, laserOnFrame, threshold );
-    if(p.x == 0.0){return false;}
-    laser->setLaserPointPosition(p);
-    return true;*/
-
-
     });
   
   socket.on('disconnect', function() {
