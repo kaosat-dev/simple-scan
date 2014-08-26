@@ -1,23 +1,21 @@
 var Q = require('q');
 var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort;
+var sleep      = require('./sleep');
 
 var Laser     = require("./laser");
 var Camera    = require("./camera");
 var TurnTable = require("./turntable");
-var Vision = require("./vision");
-
-function sleep(millis) {
-  var deferredResult = Q.defer();
-  setTimeout(function() {
-    deferredResult.resolve();
-  }, millis);
-  return deferredResult.promise;
-};
+var Vision    = require("./vision");
 
 /////////
 
 var Scanner =function(){
+  this.connected = false;
+  this.outputFolder = "./scanData/";
+  this.scanning = false;
+
+  this.serialPorts = [];
   this.serial = new SerialPort("/dev/ttyACM0", {
       baudrate: 9600,
       parser: serialPort.parsers.raw
@@ -31,6 +29,7 @@ var Scanner =function(){
   //FIXME:hack
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
+  
 }
 
 Scanner.prototype={};
@@ -54,9 +53,10 @@ Scanner.prototype.connect=function*()
     console.log(port.comName);
     console.log(port.pnpId);
     console.log(port.manufacturer);*/
-  var serialPorts = yield serialList();
+  var serialPorts = this.serialPorts =  yield serialList();
   try{
      yield serialConnect();
+     this.connected = true;
   }
   catch(error)
   {
@@ -82,21 +82,18 @@ Scanner.prototype.sendCommand=function(command)
     //console.log("waiting for data", response, response.toJSON());
         if (response.toJSON()[0] == 213) {
           //console.log("oh yeah");
-            // This is our frame's response. Resolve the promise.
             deferred.resolve("ok");
         } else if (response.toJSON()[0] == 211) {
               deferred.resolve("ok");
             }
   };
   this.serial.on("data", callback);
-  //console.log("sending command");
   this.serial.write( new Buffer(command) );
-  //console.log("waiting for response to command");
   return deferred.promise; 
 }
 
 //detect laser line
-Scanner.prototype.detectLaser = function *()
+Scanner.prototype.detectLaser = function *(debug)
 {
     console.log("attempting laser detection");
     var threshold = 40;
@@ -104,51 +101,77 @@ Scanner.prototype.detectLaser = function *()
     //make sure laser is off
     yield this.laser.turnOff();
     var imNoLaser = yield this.camera.read();
-    //imNoLaser.save(outputFolder+'/camNoLaser'+i+'.png');*/
+    if(debug) imNoLaser.save(this.outputFolder+'calib_camNoLaser.png');
 
     //make sure laser is on
     yield this.laser.turnOn();
     var imLaser = yield this.camera.read();
     console.log("got camera image with laser");
-    //imLaser.save('camLaser.png');
+    if(debug) imLaser.save(this.outputFolder+'calib_camLaser.png');
 
     //var newSize= new cv.Size(1280,96O);
     //cv::resize( laserOnFrame,laserOnFrame,cv::Size(1280,960) );
     //cv::resize( laserOffFrame,laserOffFrame,cv::Size(1280,960) );
+
+    //cleanup 
+    //make sure laser is off
+    yield this.laser.turnOff();
+
     console.log("frames grabbed, now detecting...");
-    this.vision.detectLaserLine( imNoLaser, imNoLaser, threshold );
-    if(p.x == 0.0){return false;}
-    this.laser.position=p;
+    var p = yield this.vision.detectLines( imLaser, imNoLaser, threshold );
+    console.log("got result", p);
+    if(!(p)){return false;}
+    this.laser.position = p;
     return true;
 }
 
-var co = require('co');
+//do a scan ! 
+Scanner.prototype.scan = function *(stepDegrees ,debug)
+{
+   var yDpi = 10;
+   //detect laser line
+   yield this.detectLaser();
+   //make sure laser is off
+   yield this.laser.turnOff();
 
-function sleep2 (ms) {
-  return function (fn) {
-    setTimeout(fn, ms);
-  };
+   this.scanning = true; //start scanning, if false, scan stops
+   var stepDegrees = stepDegrees;//turntableStepSize;
+
+   //make sure laser is on
+   //yield this.laser.turnOn();
+   //and turntable too
+   yield this.turnTable.toggle(true);
+
+
+    //iterate over a complete turn of the turntable
+    for(i=0; i<360 && this.scanning==true; i+=stepDegrees){
+
+        //take picture without laser
+        yield this.laser.turnOff();
+        var imNoLaser = yield this.camera.read();
+        if(debug) imNoLaser.save(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png');
+        //cv::resize( laserOff,laserOff,cv::Size(1280,960) );
+
+        yield sleep(300);
+        //take picture with laser
+        yield this.laser.turnOn();
+        var imLaser = yield this.camera.read();
+        //cv::resize( laserOn,laserOn,cv::Size(1280,960) );
+        if(debug) imLaser.save(this.outputFolder+'camLaser'+i/stepDegrees+'.png');
+
+        
+        //here the magic happens
+        //this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0);
+
+        //TODO: stream data to browser
+        //geometries->setPointCloudTo(model->pointCloud);
+
+        //turn turntable a step
+        yield this.turnTable.rotateByAngle(stepDegrees);
+    }
+    this.scanning = false; //stop scanning
+    yield this.turnTable.toggle(false);
 }
-var scanner = new Scanner();
-co(function* () {
 
-  console.log("start");
-  yield scanner.connect();
-  yield scanner.detectLaser();
-
-
-
-console.log("done");
-})();
-
-/*
-Q.async(function*() {
-    console.log("start");
-    
-    //yield scanner.foobar();
-    var u = yield scanner.foobar();
-    //u.next();
-    //yield sleep(5000);
-})().done();*/
 
 module.exports = Scanner;

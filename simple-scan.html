@@ -39,7 +39,7 @@
               <paper-icon-button icon="menu"></paper-icon-button>
               <span flex>Simple-scan</span>
               <core-tooltip label="Start scan">
-                <paper-icon-button icon="image:timelapse" on-tap="{{showToast}}" ></paper-icon-button>
+                <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" ></paper-icon-button>
               </core-tooltip>
               <core-tooltip label="Settings">
                 <paper-icon-button icon="settings" on-tap="{{showToast}}"></paper-icon-button>
@@ -50,14 +50,6 @@
               <core-tooltip label="Connect to scanner">
                 <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
               </core-tooltip>
-              
-              <!--<core-dropdown selected="Financier" valueattr="label" icon="device:usb">
-                  <core-item label="Croissant"></core-item>
-                  <core-item label="Donut"></core-item>
-                  <core-item label="Financier"></core-item>
-                  <core-item label="Madeleine"></core-item>
-              </core-dropdown>-->
-
               
               <paper-menu-button icon="more-vert" halign="right" valign="top">
                   <paper-item icon="drive-keep" label="Menu Item 1"></paper-item>
@@ -73,11 +65,6 @@
               <paper-button label="Accept" affirmative autofocus></paper-button>
             </paper-dialog>
             
-            
-            
-            <video id="video" width="640" height="480" autoplay></video>
-            <canvas id="videoCanvas" width="640" height="480"></canvas>
-            <!--<img id="img" src="./cam.png" alt="camera view"></img>-->
             
              <three-js id="threeJs" unresolved>
                 <three-stats id="stats" show></three-stats>
@@ -98,11 +85,19 @@
 
             <div id="settings">
                 Serial
-                <select>
+                <core-dropdown selected="1" >
                   <template repeat="{{port in serialPorts}}">
-                  <option value="{{port.comName}}">{{port.comName}}</option>
+                    <core-item value="{{port.comName}}" label="{{port.comName}}"></core-item>
                   </template>
-                </select>
+                </core-dropdown>
+
+                Quality
+                <core-dropdown selected="1" value="{{scanQual}}">
+                    <core-item value="1" label="1"></core-item>
+                    <core-item value="10" label="10"></core-item>
+                    <core-item value="45" label="45"></core-item>
+                </core-dropdown>
+                <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{debugToggled}}"></paper-checkbox>
                 
                 <input type="button" id="connect" value="connect" on-tap="{{connect}}"> </input>
                 
@@ -118,7 +113,8 @@
                     value="{{laserAngle}}°"></paper-input> 
                   </div>
                   <div>
-                    <paper-icon-button fill id="detectLaser" label="Detect laser" icon="image:auto-fix" on-tap="{{detecLaser}}" disabled?="{{!connected}}"></paper-icon-button>
+                    <paper-icon-button fill id="detectLaser" label="Detect laser" icon="image:auto-fix" on-tap="{{detectLaser}}" disabled?="{{!connected}}"></paper-icon-button>
+                    <template if="{{laserDetected}}"> <div style="background:red">Laser Detected</div></template>
                   </div>
                 </section>
                 <section>
@@ -149,10 +145,23 @@
                   <div center horizontal layout>
                     Camera<select></select>
                   </div>
+
                   <div center horizontal layout>
                     <div flex>Toggle camera</div>
                     <paper-checkbox id="toggleCamera" class="blue" alt="cameraToggler" checked="{{cameraToggled}}"></paper-checkbox>
                   </div>
+
+
+                  <div center horizontal layout>
+                    <div flex>Camera feed</div>
+                    <div>
+                      <video id="video" width="640" height="480" autoplay></video>
+                      <canvas id="videoCanvas" width="640" height="480"></canvas>
+                      <!--<img id="img" src="./cam.png" alt="camera view"></img>-->
+                    </div>
+                    </div>
+                  </div>
+
 
                   <div center horizontal layout>
                     Frame sending <input type="checkbox" id="frameToggler" alt="frameToggler" checked="{{sendFrames}}"></input>
@@ -175,7 +184,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
 
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -195,21 +204,25 @@
                 fps : 24,
                 //
                 laserToggled:false,
+                laserDetected:false,
                 stepperToggled:false,
+                debugToggled  :false,
                 //
                 laserAngle:0,
                 stepsToRotate:10,
                 angleToRotate:10,
                 _stepsPerRevo:400,//how many steps per full rotation
 
+                scanQual:10,
                 //
                 userToastMessage:"Disconnected from socket.io server!",
 
                 attached:function(){
                   //listen to some events
-                  this.$.socketIo.addEventListener('s-io-status',this.onSIOStatus.bind(this) );
                   this.$.socketIo.addEventListener('s-io-connected',this.onSIOConnect.bind(this) );
                   this.$.socketIo.addEventListener('s-io-disconnected',this.onSIODisconnect.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
+                
                 },
                 domReady:function(){
                   var radius   = 100,
@@ -255,6 +268,13 @@
                     if(converted != this.stepsToRotate) this.stepsToRotate = converted;
                 },
                 //event handlers
+                onSIOConnect:function(){
+                  this.connected = true;
+                },
+                onSIODisconnect:function(){
+                  console.log("disconnected");
+                  this.$.toast.show();
+                },
                 onSIOStatus:function(e, detail, sender){
                   console.log("recieved status event from socket io",e);
                   var status = e.detail.msg;
@@ -263,12 +283,9 @@
                   this.stepperToggled = status.stepperOn;
                   this.serialPorts = status.serialPorts;
                 },
-                onSIOConnect:function(){
-                  this.connected = true;
-                },
-                onSIODisconnect:function(){
-                  console.log("disconnected");
-                  this.$.toast.show();
+                onSIOlaserDetected:function(e, detail, sender){
+                  console.log("laser detected",e.detail.msg);
+                  this.laserDetected=e.detail.msg.detected;
                 },
                 //internal api
                 setupVideo:function(){
@@ -335,20 +352,22 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 },
                 rotateCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CW"}});
+                    this.sendMessage({event:"rotate", data: {direction:"CW",steps:this.stepsToRotate}});
                 },
                 rotateCCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CCW"}});
+                    this.sendMessage({event:"rotate", data: {direction:"CCW",steps:this.stepsToRotate}});
                 },
                 startScan:function()
                 {
-                    console.log("startScan");
-                    //this.sendMessage({event:"rotate", data: {direction:"CCW"}});
+                    console.log("starting Scan");
+                    this.sendMessage({event:"scan", data:{debug:this.debugToggled,stepDegrees:this.scanQual}});
+                    this.scanStarted=true;
                 },
                 detectLaser:function(){
                     console.log("detectLaser");
-                    this.sendMessage({event:"detectLaser", data: canvas.toDataURL("image/jpeg")});
+                    this.sendMessage({event:"detectLaser",data:{debug:this.debugToggled}});//data: canvas.toDataURL("image/jpeg")
+                    this.laserDetected=false;
                 }
             });
         </script>

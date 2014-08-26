@@ -1,3 +1,6 @@
+var Q = require('q');
+var sleep = require('./sleep');
+
 var Laser = function(serial)
 {
   //NOTE: taken from infos in fsconfiguration.cpp from original fabscan
@@ -18,10 +21,19 @@ Laser.prototype.setLaserPointPosition=function(pos)
     console.log("Current laser angle: ",this.rotation.y);
 }
 
-Laser.prototype.toggle=function*()
+Laser.prototype.toggle=function*(flag)
 {
   var isOn = this.isOn;
-  if(isOn)
+  if(flag == undefined)
+  {
+    isOn != isOn;
+  }
+  else
+  {
+    isOn = flag;
+  }
+
+  if(!isOn)
   {
     yield this.sendCommand([200]);
   }
@@ -30,19 +42,21 @@ Laser.prototype.toggle=function*()
     yield this.sendCommand([201]);
   }
   
+  this.isOn= isOn;
   yield sleep(200);
-  isOn != isOn;
 }
 
 Laser.prototype.turnOff=function*()
 {
    yield this.sendCommand([200]);
+   yield sleep(200);
    this.isOn = false;
 }
 
 Laser.prototype.turnOn=function*()
 {
    yield this.sendCommand([201]);
+   yield sleep(200);
    this.isOn = true;
 }
 

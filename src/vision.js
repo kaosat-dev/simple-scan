@@ -11,16 +11,16 @@ var Vision = function()
 
 Vision.prototype={};
 
-Vision.prototype.detectLines = function*( laserOn, laserOff, threshold)
+Vision.prototype.detectLines = function*( imLaser, imNoLaser, threshold)
 {
-  var diff = new cv.Matrix(im.width(), im.height());
-  diff.absDiff(laserOn, laserOff);
+  var diff = new cv.Matrix(imLaser.width(), imLaser.height());
+  diff.absDiff(imLaser, imNoLaser);
 
   var lower_threshold = [46, 0, 0];
   var upper_threshold = [150, 196, 255];
   diff.inRange(lower_threshold, upper_threshold);
 
-  var imCanny = im.copy();
+  var imCanny = diff.copy();
   //imCanny.convertGrayscale();
   var lowThresh = 50;
   var highThresh = 200;
@@ -36,8 +36,7 @@ Vision.prototype.detectLines = function*( laserOn, laserOff, threshold)
   imCanny.save('./frameDiffOut_Canny.png');
 
 
-  var houghInput = im;
-  var outputDebug = yield readImage( './testData/camLaser.png' );
+  var houghInput = diff;
   //var outputDebug = new cv.Matrix(im.height(), im.width()); 
   //args : rho:1, theta:PI/180, threshold:80, minLineLength:30, maxLineGap:10 
 
@@ -63,7 +62,9 @@ Vision.prototype.detectLines = function*( laserOn, laserOff, threshold)
   var best = foundLines[longest];
   //outputDebug.line([cur[0],cur[1]], [cur[2], cur[3]],RED);
 
-  if(foundLines.length==0) console.log("No lines found"); return null;
+  if(!(best)){
+     console.log("No lines found"); return null;
+  }
   return {x:best[0],y:best[1]}
 }
 

@@ -91,7 +91,15 @@ paper-tabs{
   z-index:10;
 }
 
+:host /deep/ core-dropdown{
 
+  max-width: 250px;
+}
+
+core-dropdown::shadow #menu {
+    border: 1px solid #ccc;
+    overflow:hidden;
+}
 
 
 :host /deep/ paper-input{

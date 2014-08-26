@@ -1,33 +1,19 @@
 var express    = require('express'); 		// call express
 var io = require('socket.io').listen(8082);
-var cv = require('opencv');
-
-/*handle camera stuff*/
-/*
-var camera = new cv.VideoCapture(0);
-
-setInterval(function() {
-
-	camera.read(function(err, im) {
-        im.rotate(180);
-		im.save('cam.png');
-        
-	});
-
-}, 500);*/
-
 var app        = express(); 				// define our app using express
 var port = process.env.PORT || 8080; 		// set our port
-
 app.use(express.static("./"));
-/*app.get('/', function(req, res) {
-    res.sendfile('./index.html');
-});*/
+
+
+var Scanner = require("./scanner");
+
+var scanner = new Scanner();
+
 //////////////////////////
 
 
 //serial stuff
-var serialPort = require("serialport");
+/*var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort
 
 var serialPorts = []
@@ -44,7 +30,7 @@ serialPort.list(function (err, ports) {
 var serial = new SerialPort("/dev/ttyACM0", {
   baudrate: 9600,
   parser: serialPort.parsers.raw
-},false);
+},false);*/
 
 
 //status
@@ -62,13 +48,19 @@ var cameraLaserAngle = 75;
 //var x = d*tan(theta);
 
 
+
+var co = require('co');
+co(function* () {
+    console.log("start");
+    yield scanner.connect();
+
 //////////////////////////
 
 io.sockets.on('connection', function (socket) {
   console.log("connected ",socket.id);
   clientsMap[socket.id] = {};
   socket.emit('userChanged',clientsMap); //send users list on connection
-  socket.emit('status',{"serialConnected": serialConnected,laserOn:laserOn,stepperOn:stepperOn,serialPorts:serialPorts});
+  socket.emit('status',{serialConnected: scanner.connected,laserOn:scanner.laser.isOn,stepperOn:scanner.turnTable.isOn,serialPorts:scanner.serialPorts});
 
   socket.on('message', function (data) {
     console.log("SERVER recieved message",data);
@@ -87,9 +79,61 @@ io.sockets.on('connection', function (socket) {
   ///////////////////////////////////
   socket.on('connectToScanner', function (data) {
     console.log("SERVER recieved connect",data);
-    serial.open();
-    serialConnected = true;
+    co(function* (){
+      if(!(scanner.connected))
+      {
+        yield scanner.connect();
+      }
+    })();
   });
+
+  socket.on('toggleLaser',function(flag){
+    console.log("SERVER toggling laser ",flag);
+    co(function* (){
+        yield scanner.laser.toggle(flag);
+    })();
+   });
+
+  socket.on('toggleStepper',function(flag){
+    console.log("SERVER toggling stepper ",flag);
+    co(function* (){
+        yield scanner.turnTable.toggle(flag);
+    })();
+   });
+
+  socket.on('rotate',function (data) {
+    console.log("SERVER rotating platform ",data);
+    co(function* (){
+        var dir = data.direction;
+        if(dir === "CW")
+        {
+           steps = -steps;
+        }
+        yield scanner.turnTable.rotateBySteps(data.steps);
+    })();
+  });
+
+
+  socket.on('detectLaser',function(debug){
+    console.log("detectLaser");
+    co(function* (){
+        var detected=yield scanner.detectLaser(debug);
+        console.log("foooo");
+        socket.emit('laserDetected',{detected:detected});
+    })();
+   });
+
+   socket.on('scan',function(data){
+    console.log("starting scan",data);
+    co(function* (){
+        yield scanner.scan(data.stepDegrees,data.debug);
+        console.log("foooo");
+        socket.emit('scan finished');
+    })();
+   });
+  ///////////////////////////////////
+
+
 
   //video frame recieved
   socket.on('frame',function (data) {
@@ -108,124 +152,15 @@ io.sockets.on('connection', function (socket) {
 					im.save('./out.png');   
 		});
 
-
     });
   });
-
-  socket.on('toggleLaser',function (data) {
-    console.log("SERVER toggling laser ",data);
-    laserOn = data;
-    if(data)
-    {
-         serial.write(new Buffer([201]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-    }
-    else
-    {
-        serial.write(new Buffer([200]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-    }
-
-  });
-
-socket.on('toggleStepper',function (data) {
-    console.log("SERVER toggling stepper ",data);
-    stepperOn = data ;
-    if(data)
-    {
-         serial.write(new Buffer([205]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-    }
-    else
-    {
-        serial.write(new Buffer([206]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-    }
-
-  });
-
-  socket.on('stepsToRotate',function (data) {
-    turnTableSteps = data;
-  });
-
-
-  socket.on('rotate',function (data) {
-    console.log("SERVER rotating platform ",data);
-    var dir = data.direction;
-    if(dir == "CW")
-    {
-        serial.write(new Buffer([203]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-        serial.write(new Buffer([202,turnTableSteps]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-            
-
-          });
-    }else{
-        serial.write(new Buffer([204]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-        serial.write(new Buffer([202,turnTableSteps]), function(err, results) {
-            console.log('err3 ' + err);
-            console.log('sent ' + results);
-          });
-    }
-  });
-
-
-  socket.on('detectLaser',function(){
-    console.log("detectLaser");
-    var threshold = 40;
-    });
   
   socket.on('disconnect', function() {
     console.log("user",clientsMap[socket.id].name,"disconnected");
   });
-
 });
 
-//////////////////////////
-//fabscan stuff
-/*#define TURN_LASER_OFF      200
-#define TURN_LASER_ON       201
-#define PERFORM_STEP        202
-#define SET_DIRECTION_CW    203
-#define SET_DIRECTION_CCW   204
-#define TURN_STEPPER_ON     205
-#define TURN_STEPPER_OFF    206
-#define TURN_LIGHT_ON       207
-#define TURN_LIGHT_OFF      208
-#define ROTATE_LASER        209
-#define FABSCAN_PING        210
-#define FABSCAN_PONG        211
-#define SELECT_STEPPER      212
-#define LASER_STEPPER       11
-#define TURNTABLE_STEPPER   10*/
-
-
-serial.on('error', function(error){
-  console.log("failed to open serial port");
-});
-serial.on("open", function () {
-  console.log('serial open');
-  console.log("here");
-  serial.on('data', function(data) {
-    console.log(data.toJSON());
-  });
-});
-
+})();
 
 app.listen(port);
 console.log('Magic happens on port ' + port);
