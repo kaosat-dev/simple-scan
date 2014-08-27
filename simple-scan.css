@@ -50,6 +50,18 @@ three-js[resolved] {
     }
 
 
+#settings{
+  position:absolute;
+  z-index:10;
+  right:10px;
+  top:40px;
+  width:350px;
+  height:100%;
+  background:#fff;
+  overflow:auto;
+}
+
+
 /*styling of core/paper polymer elements*/
 core-toolbar /deep/ .toolbar-tools {
   position: relative;
@@ -121,11 +133,6 @@ paper-checkbox.blue::shadow #checkbox.checked {
 }
  paper-checkbox {
   padding: 10px 10px 10px 0;
-}
-
-#settings{
-  position:absolute;z-index:10;right:10px;top:40px;width:350px;background:#fff;
-  overflow:auto;
 }
 
 :host /deep/ core-dropdown.narrow {

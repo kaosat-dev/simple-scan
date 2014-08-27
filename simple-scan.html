@@ -69,7 +69,6 @@
              <three-js id="threeJs" unresolved>
                 <three-stats id="stats" show></three-stats>
                 <tween-js></tween-js>
-                <three-js-webglRenderer id="webglRenderer"></three-js-webglRenderer>
                 <three-js-scene name="main" active pickable>
                   <three-hemisphereLight color="0xffEEEE" gndColor="0xffEEEE" pos="[0, 0, 1500]" intensity=0.6></three-hemisphereLight>
                   <three-ambientLight color="0x262525" intensity="3"> </three-ambientLight>
@@ -78,7 +77,7 @@
                     <axis-helper> </axis-helper>
                 </three-js-scene>
                 <three-js-viewport name="perspective" id="perspectiveView">
-                  <three-js-combinedCamera pos="[100,50,200]" orientation="diagonal" up=[0,0,1]></three-js-combinedCamera>
+                  <three-js-combinedCamera pos="[200,200,100]" orientation="diagonal" up=[0,0,1]></three-js-combinedCamera>
                   <three-js-orbitControls cameraUp=[0,0,1] autoRotate="{{autoRotate}}" autoRotateSpeed="10"> </three-js-orbitControls>
                 </three-js-viewport>
             </three-js>
