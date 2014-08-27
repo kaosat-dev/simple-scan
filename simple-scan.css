@@ -3,20 +3,6 @@
   display: block;
 }
 
-/*FIXME: these do not work)*/
-/*:host[unresolved]{
-  opacity:0;
-}
-
-:host :unresolved{
-  opacity:0;
-}
-
-:host[resolved]{
-  color:red;
-opacity:1;
-  }*/
-
 #video{
   display: none;}
 #videoCanvas{
@@ -33,8 +19,6 @@ three-js {
   background-color:white;
   outline: none;
 
-  opacity: 0;
-  //transition: opacity 500ms;
 }
 
 three-js[resolved] {

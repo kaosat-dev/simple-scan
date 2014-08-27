@@ -183,7 +183,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
 
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -213,15 +213,17 @@
                 _stepsPerRevo:400,//how many steps per full rotation
 
                 scanQual:10,
+                scanData:null,
                 //
                 userToastMessage:"Disconnected from socket.io server!",
 
                 attached:function(){
                   //listen to some events
-                  this.$.socketIo.addEventListener('s-io-connected',this.onSIOConnect.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-disconnected',this.onSIODisconnect.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-connected',    this.onSIOConnect.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-disconnected', this.onSIODisconnect.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-status',       this.onSIOStatus.bind(this) );
                   this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
-                
+                  this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
                 },
                 domReady:function(){
                   var radius   = 100,
@@ -231,6 +233,12 @@
                   // Remove center vertex
                   geometry.vertices.shift();
                   this.$.threeJs.addToScene( new THREE.Line( geometry, material ) );
+
+                  var geometry = new THREE.Geometry();
+                  var pMaterial = new THREE.ParticleBasicMaterial({ size: 5,color: 0xFF0000});//new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
+                  var particles = new THREE.ParticleSystem( geometry, pMaterial );// new THREE.PointCloud( geometry, pMaterial );
+      
+                  this.triDViewer = this.$.threeJs;
                 },
                 inMessageChanged:function(){
                     console.log("inMessage", this.inMessage);
@@ -285,6 +293,27 @@
                 onSIOlaserDetected:function(e, detail, sender){
                   console.log("laser detected",e.detail.msg);
                   this.laserDetected=e.detail.msg.detected;
+                },
+                onSIOScanFinished:function(e,detail,sender){
+                  console.log("scan finished",e.detail.msg.data);
+
+                  var scanData = this.scanData = e.detail.msg.data;
+                  var geometry = new THREE.Geometry();
+
+                  /*var pMaterial = new THREE.ParticleBasicMaterial({
+                        color: 0xFF0000,
+                        size: 20
+                      });*/
+                  for(var i=0;i<scanData.length;i++)
+                  {
+                    var current = scanData[i];
+                    geometry.vertices.push( new THREE.Vector3(current.x,current.y,current.z) );
+                  }
+
+                  var pMaterial = new THREE.ParticleBasicMaterial({ size: 2,color: 0xFF0000});//var pMaterial = new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
+                  var particles = new THREE.ParticleSystem( geometry, pMaterial );//var particles = new THREE.PointCloud( geometry, pMaterial );
+      
+                  this.triDViewer.addToScene( particles );
                 },
                 //internal api
                 setupVideo:function(){

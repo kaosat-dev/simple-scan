@@ -6,10 +6,15 @@ var Vision = function()
   this.camWidth = 640;
   this.camHeight= 480; 
 
+  //TODO: make these configurable
   this.origin = new cv.Point(0,0.75);
+  this.frameWidth = 26.6;
+  this.camWidth = 1280 ;
+  this.camHeight = 960;
 }
 
 Vision.prototype={};
+
 
 Vision.prototype.detectLines = function*( imLaser, imNoLaser, threshold)
 {
@@ -31,17 +36,16 @@ Vision.prototype.detectLines = function*( imLaser, imNoLaser, threshold)
   var WHITE = [255, 255, 255]; //B, G, R
   var RED   = [0, 0, 255]; //B, G, R
   var BLUE   = [255, 0, 0]; //B, G, R
-  imCanny.canny(lowThresh, highThresh,3);
+  imCanny.canny(lowThresh, highThresh,threshold);
   //imCanny.dilate(nIters);
   imCanny.save('./frameDiffOut_Canny.png');
-
 
   var houghInput = diff;
   //var outputDebug = new cv.Matrix(im.height(), im.width()); 
   //args : rho:1, theta:PI/180, threshold:80, minLineLength:30, maxLineGap:10 
 
   //good results with 30;1;30
-  var foundLines = houghInput.houghLinesP(1,Math.PI/180,20,50,10);
+  var foundLines = houghInput.houghLinesP(1,Math.PI/2,20,50,10);
   //FIXME: it seems as though the found line are already in descending order ??
   var longest = null;
   var curLng = Number.NEGATIVE_INFINITY;
@@ -65,48 +69,44 @@ Vision.prototype.detectLines = function*( imLaser, imNoLaser, threshold)
   if(!(best)){
      console.log("No lines found"); return null;
   }
-  return {x:best[0],y:best[1]}
+
+  var cvPoint = new cv.Point(best[0],best[1]);
+  var point = this.convertCvPointToPoint( cvPoint );
+  //return {x:best[0],y:best[1]}
+  return point;
 }
 
-Vision.prototype.drawHelperLines = function( im )
+
+Vision.prototype.detectLines2 = function( imLaser, imNoLaser)
 {
+  console.log("starting extractLaserLine");
+  var diff = new cv.Matrix(imLaser.width(), imLaser.height());
+  diff.absDiff(imLaser, imNoLaser);
+
+  var lower_threshold = [46, 0, 0];
+  var upper_threshold = [150, 196, 255];
+  diff.inRange(lower_threshold, upper_threshold);
+
+  var imCanny = diff.copy();
+  //imCanny.convertGrayscale();
+  var lowThresh = 50;
+  var highThresh = 200;
+  var nIters = 1;
+  var maxArea = 2500;
+
   var GREEN = [0, 255, 0]; //B, G, R
   var WHITE = [255, 255, 255]; //B, G, R
   var RED   = [0, 0, 255]; //B, G, R
   var BLUE   = [255, 0, 0]; //B, G, R
-  //draw calibration lines
-  //horizontal, center
-  im.line([0,im.height()/2],[im.width(),im.height()/2],GREEN);
-  //vertical, center
-  im.line([im.width()/2,0],[im.width()/2,im.height()],GREEN);
-  //horizontal turntable center
-  im.line([0,im.height()/1.33],[im.width(),im.height()/1.33],WHITE);
+  imCanny.canny(lowThresh, highThresh,3);
+  imCanny.dilate(nIters);
+  imCanny.save('./frameDiffOut_Canny.png');
+
+  console.log("finished extractLaserLine");
+  return imCanny;
 }
 
-Vision.prototype.convertPointToCvPoint = function( point)
-{
-  /*FSSize fsImageSize = FSMakeSize(
-              FSController::config->FRAME_WIDTH,
-              FSController::config->FRAME_WIDTH*(
-                  FSController::config->CAM_IMAGE_HEIGHT/FSController::config->CAM_IMAGE_WIDTH), 0.0f);*/
-
-  var origin= new cv.Point();
-  origin.x = this.camWidth/2.0;
-  origin.y = this.camHeight*this.origin.y;//FSController::config->ORIGIN_Y;
-
-  var cvPoint = new cv.Point();
-
-  cvPoint.x = point.x*this.camWidth/fsImageSize.width
-  cvPoint.y = -point.y*this.camHeight/fsImageSize.height;
-
-  //translate
-  cvPoint.x += origin.x;
-  cvPoint.y += origin.y;
-  return cvPoint;
-}
-  
-
-Vision.prototype.extractLaserLine =  function(laserOff,laserOn)
+Vision.prototype.extractLaserLine =  function(laserOff, laserOn)
 {
   
   var bwLaserOff = laserOff.copy();
@@ -115,20 +115,25 @@ Vision.prototype.extractLaserLine =  function(laserOff,laserOn)
   var bwLaserOn = laserOn.copy();
   bwLaserOn.convertGrayscale();//convert to grayscale
 
-  var diffImage = new cv.Matrix(imLaser.width(), imLaser.height());
+  var diffImage = new cv.Matrix(laserOn.width(), laserOn.height());
   diffImage.absDiff(bwLaserOn, bwLaserOff);//subtract both grayscales
 
   var tresh2Image = diffImage.clone();
 
+  //console.log("applying gaussian Blur");
   var gaussImage = diffImage.clone();
   gaussImage.gaussianBlur([15,15]);//,cv::Size(15,15),12,12)
 
-  diffImage = diffImage.absDiff( gaussImage ); //diffImage-gaussImage
-
+  var tmp = new cv.Matrix(laserOn.width(), laserOn.height());
+  tmp.absDiff(diffImage, gaussImage ); //diffImage-gaussImage
+  diffImage = tmp;
+  
   var threshold = 10;
-
+  //console.log("applying threshold");
   diffImage.threshold(threshold,255,0);//cv::THRESH_TOZERO); //apply threshold
+  //console.log("applying erode");
   diffImage.erode( 3 );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
+  //console.log("applying canny");
   diffImage.canny( 20,50 );
 
 
@@ -136,7 +141,7 @@ Vision.prototype.extractLaserLine =  function(laserOff,laserOn)
   var cols = laserOff.height();
   /////////
 
-  var laserImage = new cv.Matrix(imLaser.width(), imLaser.height());
+  var laserImage = new cv.Matrix(laserOn.width(), laserOn.height());
 
   var edges = new cv.Matrix(1,cols);
     //int edges[cols]; //contains the cols index of the detected edges per row
@@ -160,46 +165,133 @@ Vision.prototype.extractLaserLine =  function(laserOff,laserOn)
         }
     }
     //cv::cvtColor(laserImage, result, CV_GRAY2RGB); //convert back ro rgb
+    var result = laserImage.copy();
+    result.save('foobarbaz.png');
     return result;
 }
 
-Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laserPosition)
+
+Vision.prototype.drawHelperLines = function( im )
 {
+  var GREEN = [0, 255, 0]; //B, G, R
+  var WHITE = [255, 255, 255]; //B, G, R
+  var RED   = [0, 0, 255]; //B, G, R
+  var BLUE   = [255, 0, 0]; //B, G, R
+  //draw calibration lines
+  //horizontal, center
+  im.line([0,im.height()/2],[im.width(),im.height()/2],GREEN);
+  //vertical, center
+  im.line([im.width()/2,0],[im.width()/2,im.height()],GREEN);
+  //horizontal turntable center
+  im.line([0,im.height()/1.33],[im.width(),im.height()/1.33],WHITE);
+}
+
+//convert our custom point to openCV point
+Vision.prototype.convertPointToCvPoint = function( point)
+{
+  var fsImgWidth = this.frameWidth;
+  var fsImgHeight = (this.frameWidth*(this.camHeight/this.camWidth));
+
+  var origin = new cv.Point(this.camWidth/2.0,this.camHeight*this.origin.y);
+
+  var cvPointX = (point.x*this.camWidth/fsImgWidth) + origin.x;
+  var cvPointY = (-point.y*this.camHeight/fsImgHeight) + origin.y;
+  var cvPoint = new cv.Point(cvPointX, cvPointY);
+
+  console.log("done converting from point",point," to ", cvPointX,cvPointY);
+  return cvPoint;
+}
+
+//convert openCV to our custom point
+Vision.prototype.convertCvPointToPoint = function( cvPoint)
+{
+  var fsImgWidth = this.frameWidth;
+  var fsImgHeight = (this.frameWidth*(this.camHeight/this.camWidth));
+
+  var origin = new cv.Point(this.camWidth/2.0,this.camHeight*this.origin.y); 
+
+  var point= {x:0,y:0,z:0};
+  point.x = (cvPoint.x - origin.x)*fsImgWidth/this.camWidth  ;
+  point.y = -(cvPoint.y - origin.y)*fsImgHeight/this.camHeight;
+  point.z = 0.0;
+
+  console.log("done converting from cv point","{x:"+cvPoint.x+" y:"+cvPoint.y+"}"," to ", point);
+  return point;
+}
+
+
+//compute line from points
+Vision.prototype.computeLineFromPoints = function( p1, p2 )
+{
+  console.log("line from", p1,"to",p2);
+  var l= {a:0,b:0}; //{x: 14, y: 6.4, z: 28.8 } { x: 14, y: 0, z: 0 }
+  l.a = (p2.z-p1.z)/(p2.x-p1.x);
+  l.b = p1.z-l.a*p1.x;
+
+  console.log("result line", l);
+  return l;
+}
+
+
+//compute line intersections
+Vision.prototype.computeIntersectionOfLines = function( l1, l2 )
+{
+  var i= {x:0,y:0};//intersection of the two coplanar lines
+  i.x = (l2.b-l1.b)/(l1.a-l2.a);
+  i.z = l2.a*i.x+l2.b;
+  return i;
+}
+
+
+
+Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model)
+{
+  console.log("/////////////////");
   console.log("putPointsFromFrameToCloud");
     
   //extract laser line from the two images
-  var laserLine = this.extractLaserLine(laserOff,laserOn);
+  var laserLine = this.detectLines2(laserOff,laserOn);//this.extractLaserLine(laserOff,laserOn);
 
   //calculate position of laser in cv frame
   //position of the laser line on the back plane in world coordinates
-  var cvLaserLinePosition = convertFSPointToCvPoint(laserPosition);
+  var cvLaserLinePosition = this.convertPointToCvPoint(laser.pointPosition);
   var laserPos = cvLaserLinePosition.x; //const over all y
 
+  //console.log("laserPosition",laser.pointPosition, "cvLaserLinePosition",laserPos);
+
     //laserLine is result of subLaser2, is in RGB
-    var cols = laserLine.cols;
-    var rows = laserLine.rows;
+    var cols = laserLine.width();//laserLine.height();
+    var rows = laserLine.height();//laserLine.width();
+
     //create new image in black&white
-    var bWImage = new cv.Matrix(im.height(), im.width()); 
-    //cv::Mat bwImage( cols,rows,CV_8U,cv::Scalar(100) );
+    var bwImage = laserLine.copy();
+    //bwImage.convertGrayscale(); 
+    //bwImage.save('foobarbazBW.png');
     
-    //convert from rgb to b&w
-    //cv::cvtColor(laserLine, bwImage, CV_RGB2GRAY); //convert to grayscale
-    
+    //TODO: move these to config
     var upperFrameLimit = 0;
-    var lowerFrameLimit = 0;
-    var laserOffset = 0;
-    var turnTable = {};
+    var lowerFrameLimit = 30;
+    var laserOffset = 90;
+
+    //console.log("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
     //now iterating from top to bottom over bwLaserLine frame
     //no bear outside of these limits :) cutting of top and bottom of frame
-    for(var y = upperFrameLimit; y < bwImage.rows-lowerFrameLimit; y+=dpiVertical )
+    for(var y = upperFrameLimit; y < rows-lowerFrameLimit; y+=dpiVertical )
     {
-        //console.log"checking point at line " << y << laserPos+ANALYZING_LASER_OFFSET;
         //ANALYZING_LASER_OFFSET is the offset where we stop looking for a reflected laser, cos we might catch the non reflected
         //now iteratinf from right to left over bwLaserLine frame
-        for(var x = bwImage.cols-1; x >= laserPos+laserOffset; x -= 1){
-            //console.log"Pixel value: " << bwImage.at<uchar>(y,x);
-            if(bwImage.at(y,x)==255){ //check if white=laser-reflection
-                //console.log"found point at x=" << x;
+
+        //console.log("X Going from ",cols-1 ,"to", laserPos+laserOffset," ////laserPos",laserPos);//+ANALYZING_LASER_OFFSET;
+
+        for(var x = cols-1; x >= laserPos+laserOffset; x -= 1){
+            var pixValue = bwImage.get(y,x);
+            //if(pixValue>0)
+            //{
+            //console.log("Pixel value at ",y,x," is ",pixValue);
+            //}
+            //pixValue==255
+            if(pixValue>0){ //check if white=laser-reflection
+                console.log("found point at x=", x);
                 //if (row[x] > 200){
                 //we have a white point in the grayscale image, so one edge laser line found
                 //no we should continue to look for the other edge and then take the middle of those two points
@@ -209,33 +301,37 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 var reflectedLaserPos = new cv.Point(x,y);
 
                 //convert to world coordinates withouth depth
-                var point = this.convertCvPointToFSPoint(reflectedLaserPos);
+                var point = this.convertCvPointToPoint(reflectedLaserPos);
                 //console.log("convertedPoint", point);
-                var l1 = computeLineFromPoints(webcam.getPosition(), point);
-                var l2 = computeLineFromPoints(laser.getPosition(), laser.getLaserPointPosition());
 
-                var intersection = computeIntersectionOfLines(l1, l2);
+                var l1 = this.computeLineFromPoints(camera.position, point);
+                var l2 = this.computeLineFromPoints(laser.position, laser.pointPosition);
+
+                var intersection = this.computeIntersectionOfLines(l1, l2);
                 point.x = intersection.x;
                 point.z = intersection.z;
 
+                //console.log("intersection at , point so far:", intersection,point);
 
                 //At this point we know the depth=z. Now we need to consider the scaling depending on the depth.
                 //First we move our point to a camera centered cartesion system.
-                point.y -= webcam.position.y;
-                point.y *= (webcam.position.z - point.z)/(webcam.position.z);
+                point.y -= camera.position.y;
+                point.y *= (camera.position.z - point.z)/(camera.position.z);
                 //Redo the translation to the box centered cartesion system.
-                point.y += webcam.position.y;
+                point.y += camera.position.y;
 
+                //console.log("geting color, point so far:", point);
                 //get color from picture without laser
-                var r = laserOff.at(y,x)[2];
-                var g = laserOff.at(y,x)[1];
-                var b = laserOff.at(y,x)[0];
-                point.color = FSMakeColor(r, g, b);
+                var r = laserOff.get(y,x)[2];
+                var g = laserOff.get(y,x)[1];
+                var b = laserOff.get(y,x)[0];
+                //point.color = FSMakeColor(r, g, b);
 
                 //turning new point according to current angle of turntable
                 //translate coordinate system to the middle of the turntable
-                point.z -= turntable.position.z; //7cm radius of turntbale plus 5mm offset from back plane
-                var alphaDelta = turntable.rotation;
+                //console.log("computing, based on angle, point so far:", point);
+                point.z -= turnTable.position.z; //7cm radius of turntbale plus 5mm offset from back plane
+                var alphaDelta = turnTable.rotation;
                 var alphaOld = Math.atan(point.z/point.x);
                 var alphaNew = alphaOld+alphaDelta.y*(Math.PI/180.0);
                 var hypotenuse = Math.sqrt(point.x*point.x + point.z*point.z);
@@ -248,32 +344,20 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 point.z = Math.sin(alphaNew)*hypotenuse;
                 point.x = Math.cos(alphaNew)*hypotenuse;
 
+                //console.log("point.y",point.y,"lowerLimit",lowerLimit,'hypotenuse',hypotenuse);
+
                 if(point.y>lowerLimit+0.5 && hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
                     console.log("adding new point to thingamagic",point);
+                    model.push( point );
                     //model->addPointToPointCloud(point);
                 }
                 break;
+                
             }
         }
     }
 
 }
-/*//points must have same height
-static FSLine computeLineFromPoints(FSPoint p1, FSPoint p2)
-{
-  FSLine l;
-  l.a = (p2.z-p1.z)/(p2.x-p1.x);
-  l.b = p1.z-l.a*p1.x;
-  return l;
-}
 
-//lines must be on same plane
-static FSPoint computeIntersectionOfLines(FSLine l1, FSLine l2)
-{
-  FSPoint i; //intersection of the two coplanar lines
-  i.x = (l2.b-l1.b)/(l1.a-l2.a);
-  i.z = l2.a*i.x+l2.b;
-  return i;
-}*/
 module.exports = Vision;
 

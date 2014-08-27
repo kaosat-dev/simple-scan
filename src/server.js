@@ -126,9 +126,8 @@ io.sockets.on('connection', function (socket) {
    socket.on('scan',function(data){
     console.log("starting scan",data);
     co(function* (){
-        yield scanner.scan(data.stepDegrees,data.debug);
-        console.log("foooo");
-        socket.emit('scan finished');
+        var scanData = yield scanner.scan(data.stepDegrees,data.debug);
+        socket.emit('scanFinished',{data:scanData});
     })();
    });
   ///////////////////////////////////

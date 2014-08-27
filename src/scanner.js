@@ -29,7 +29,7 @@ var Scanner =function(){
   //FIXME:hack
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
-  
+
 }
 
 Scanner.prototype={};
@@ -103,15 +103,16 @@ Scanner.prototype.detectLaser = function *(debug)
     var imNoLaser = yield this.camera.read();
     if(debug) imNoLaser.save(this.outputFolder+'calib_camNoLaser.png');
 
+    
     //make sure laser is on
     yield this.laser.turnOn();
+    yield sleep(250);
     var imLaser = yield this.camera.read();
     console.log("got camera image with laser");
     if(debug) imLaser.save(this.outputFolder+'calib_camLaser.png');
 
-    //var newSize= new cv.Size(1280,96O);
-    //cv::resize( laserOnFrame,laserOnFrame,cv::Size(1280,960) );
-    //cv::resize( laserOffFrame,laserOffFrame,cv::Size(1280,960) );
+    //imNoLaser.resize(1280,960);
+    //imLaser.resize(1280,960);
 
     //cleanup 
     //make sure laser is off
@@ -121,7 +122,7 @@ Scanner.prototype.detectLaser = function *(debug)
     var p = yield this.vision.detectLines( imLaser, imNoLaser, threshold );
     console.log("got result", p);
     if(!(p)){return false;}
-    this.laser.position = p;
+    this.laser.pointPosition = p;
     return true;
 }
 
@@ -129,8 +130,15 @@ Scanner.prototype.detectLaser = function *(debug)
 Scanner.prototype.scan = function *(stepDegrees ,debug)
 {
    var yDpi = 10;
+   var model = [];//FIXME:stand in for now
+
    //detect laser line
-   yield this.detectLaser();
+   var laserDetected = yield this.detectLaser();
+   while(laserDetected == false)
+   {
+      laserDetected = yield this.detectLaser();
+   }
+   
    //make sure laser is off
    yield this.laser.turnOff();
 
@@ -149,18 +157,17 @@ Scanner.prototype.scan = function *(stepDegrees ,debug)
         yield this.laser.turnOff();
         var imNoLaser = yield this.camera.read();
         if(debug) imNoLaser.save(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png');
-        //cv::resize( laserOff,laserOff,cv::Size(1280,960) );
+        //imNoLaser.resize(1280,960);
 
         yield sleep(150);
         //take picture with laser
         yield this.laser.turnOn();
         var imLaser = yield this.camera.read();
-        //cv::resize( laserOn,laserOn,cv::Size(1280,960) );
+        //imLaser.resize(1280,960);
         if(debug) imLaser.save(this.outputFolder+'camLaser'+i/stepDegrees+'.png');
 
-        
         //here the magic happens
-        this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0);
+        this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0, this.laser, this.camera, this.turnTable, model);
 
         //TODO: stream data to browser
         //geometries->setPointCloudTo(model->pointCloud);
@@ -170,6 +177,9 @@ Scanner.prototype.scan = function *(stepDegrees ,debug)
     }
     this.scanning = false; //stop scanning
     yield this.turnTable.toggle(false);
+
+    console.log("done scanning: result model", model);
+    return model;
 }
 
 

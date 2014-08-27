@@ -6,7 +6,8 @@ var Laser = function(serial)
   //NOTE: taken from infos in fsconfiguration.cpp from original fabscan
   this.position = {x:14.0,y:6.4,z:28.8};
   this.rotation = {x:0,y:0,z:0};
- 
+  this.pointPosition = {x:14.0, y:0.0,z: 0.0};
+
   this.serial = serial;
   this.isOn = false;
 }
