@@ -106,9 +106,37 @@ Vision.prototype.detectLines2 = function( imLaser, imNoLaser)
   return imCanny;
 }
 
-Vision.prototype.extractLaserLine =  function(laserOff, laserOn)
+
+Vision.prototype.detectLines3 = function( imLaser, imNoLaser, threshold)
 {
+  var imLaserLine = this.extractLaserLine( imNoLaser, imLaser );
+  //imLaserLine.convertHSVscale();
+  var houghInput = imLaserLine;
   
+  //FIXME: hack
+  var lower_threshold = [46, 0, 0];
+  var upper_threshold = [255, 255, 255];
+  houghInput.inRange(lower_threshold, upper_threshold);
+  houghInput.save("houghInput.png");
+  
+  //args : rho:1, theta:PI/180, threshold:80, minLineLength:30, maxLineGap:10 
+  var foundLines = houghInput.houghLinesP(1,Math.PI/2,20,50,10);
+  //FIXME: it seems as though the found line are already in descending order ??
+  var best = foundLines.pop();
+  
+  if(!(best)){
+     console.log("No lines found"); return null;
+  }
+  var cvPoint = new cv.Point(best[0],best[1]);
+  var point = this.convertCvPointToPoint( cvPoint );
+  return point;
+}
+
+
+
+
+Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
+{
   var bwLaserOff = laserOff.copy();
   bwLaserOff.convertGrayscale();//convert to grayscale
 
@@ -117,56 +145,81 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn)
 
   var diffImage = new cv.Matrix(laserOn.width(), laserOn.height());
   diffImage.absDiff(bwLaserOn, bwLaserOff);//subtract both grayscales
-
+  
   var tresh2Image = diffImage.clone();
-
+  
+  console.log("DEBUG", debug);
+  if(debug) diffImage.save("diffImage.png");
+    
   //console.log("applying gaussian Blur");
   var gaussImage = diffImage.clone();
   gaussImage.gaussianBlur([15,15]);//,cv::Size(15,15),12,12)
+  
+  if(debug) gaussImage.save("gaussImage.png");
+  
 
   var tmp = new cv.Matrix(laserOn.width(), laserOn.height());
   tmp.absDiff(diffImage, gaussImage ); //diffImage-gaussImage
   diffImage = tmp;
   
-  var threshold = 10;
+  if(debug) diffImage.save("diffImagePostBlur.png");
+  
+  var threshold = 1;
   //console.log("applying threshold");
-  diffImage.threshold(threshold,255,0);//cv::THRESH_TOZERO); //apply threshold
+  diffImage.threshold(threshold, 255,"Threshold to Zero");//apply threshold
+  if(debug) diffImage.save("diffImagePostThreshold.png");
   //console.log("applying erode");
-  diffImage.erode( 3 );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
+  diffImage.erode( 1 );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
+  if(debug) diffImage.save("diffImagePostErode.png");
   //console.log("applying canny");
   diffImage.canny( 20,50 );
+  if(debug) diffImage.save("diffImagePostCanny.png");
 
 
-  var rows = laserOff.width();
-  var cols = laserOff.height();
+  var rows = laserOff.height(); 
+  var cols = laserOff.width();
   /////////
 
-  var laserImage = new cv.Matrix(laserOn.width(), laserOn.height());
+  var laserImage = new cv.Matrix(rows, cols);
+  var threshold = 10;//250
+  var minDist = 80;//40
 
-  var edges = new cv.Matrix(1,cols);
+  var edges = new Array(cols);
     //int edges[cols]; //contains the cols index of the detected edges per row
     for(var y = 0; y <rows; y++){
         //reset the detected edges
         for(j=0; j<cols; j++){ edges[j]=-1; }
         var j=0;
         for(var x = 0; x<cols; x++){
-            if(diffImage.get(y,x)>250){
-                edges[j]=x;
-                j++;
+            //node opencv workaround
+            var pixelVal = diffImage.pixel(y,x);
+            pixelVal=(pixelVal[0]+pixelVal[1]+pixelVal[2])/3;
+             
+            if(pixelVal > threshold)
+            {
+              //console.log("pixelVal", pixelVal);
+               edges[j]=x;
+               j++;
             }
         }
         //iterate over detected edges, take middle of two edges
         for(var j=0; j<cols-1; j+=2){
-            if(edges[j]>=0 && edges[j+1]>=0 && edges[j+1]-edges[j]<40){
-                var middle = parseInt( (edges[j]+edges[j+1])/2 );
-                //qDebug() << cols << rows << y << middle;
-                laserImage.set(y,middle,255)//[255,255,255]);// = 255;//TODO: use pixel()??
+            if(edges[j]>=0 && edges[j+1]>=0 && (edges[j+1]-edges[j])<minDist){
+                var middle = ~~((edges[j]+edges[j+1])/2);
+                //console.log("s", y , middle);
+                //laserImage.set(y,middle,255)//[255,255,255]);// = 255;//TODO: use pixel()??
+                //laserImage.set(y,middle,255);
+                //laserImage.pixel(y,middle,[255,255,255]);
+                laserImage.rectangle([middle, y], [middle, y], [255, 255, 255], 1);
             }
         }
     }
+    
+    console.log("edges", edges);
     //cv::cvtColor(laserImage, result, CV_GRAY2RGB); //convert back ro rgb
     var result = laserImage.copy();
-    result.save('foobarbaz.png');
+    if(debug) result.save("diffResult.png");
+    console.log("result channels", result.channels());
     return result;
 }
 

@@ -127,7 +127,11 @@ Scanner.prototype.detectLaser = function *(debug)
 }
 
 //do a scan ! 
-Scanner.prototype.scan = function *(stepDegrees ,debug)
+/*stepDegrees: number of degrees between each scan slice
+debug: flag 
+dummy: do not actually do a scan, use pre-existing images instead
+*/
+Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
 {
    var yDpi = 10;
    var model = [];//FIXME:stand in for now
