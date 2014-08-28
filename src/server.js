@@ -123,6 +123,15 @@ io.sockets.on('connection', function (socket) {
     })();
    });
 
+   //fixme: stream image to client?
+   socket.on('calibrate',function(data){
+    console.log("calibrating",data);
+    co(function* (){
+        var calibData = yield scanner.calibrate(data.debug);
+        socket.emit('calibImage',{data:calibData});
+    })();
+   });
+
    socket.on('scan',function(data){
     console.log("starting scan",data);
     co(function* (){

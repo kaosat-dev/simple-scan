@@ -16,7 +16,8 @@
     "paper-input": "Polymer/paper-input#~0.3.5",
     "paper-checkbox": "Polymer/paper-checkbox#~0.3.5",
     "paper-menu-button": "Polymer/paper-menu-button#~0.3.5",
-    "core-tooltip": "Polymer/core-tooltip#~0.3.5"
+    "core-tooltip": "Polymer/core-tooltip#~0.3.5",
+    "core-pages": "Polymer/core-pages#~0.3.5"
   },
   "ignore": [
     "specs/"

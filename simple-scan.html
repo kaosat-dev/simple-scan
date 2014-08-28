@@ -8,9 +8,14 @@
 <link rel="import" href="components/core-icons/hardware-icons.html">
 <link rel="import" href="components/core-icons/image-icons.html">
 
+
+<link rel="import" href="components/core-pages/core-pages.html">
+<link rel="import" href="components/core-selector/core-selector.html">
+
+<link rel="import" href="components/core-tooltip/core-tooltip.html">
 <link rel="import" href="components/core-toolbar/core-toolbar.html">
 <link rel="import" href="components/core-dropdown/core-dropdown.html">
-<link rel="import" href="components/core-tooltip/core-tooltip.html">
+
 
 <link rel="import" href="components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="components/paper-item/paper-item.html">
@@ -35,21 +40,26 @@
         <template>
             <link href="./simple-scan.css" rel="stylesheet" ></link>
             <core-toolbar >
-
               <paper-icon-button icon="menu"></paper-icon-button>
               <span flex>Simple-scan</span>
-              <core-tooltip label="Start scan">
-                <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" ></paper-icon-button>
-              </core-tooltip>
-              <core-tooltip label="Settings">
-                <paper-icon-button icon="settings" on-tap="{{showToast}}"></paper-icon-button>
-              </core-tooltip>
-              <core-tooltip label="Save scan">
-                <paper-icon-button icon="file-download" disabled></paper-icon-button>
-              </core-tooltip>
-              <core-tooltip label="Connect to scanner">
-                <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
-              </core-tooltip>
+
+              <core-selector selected="2" id="menuItems">
+                <core-tooltip label="Start scan">
+                  <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" ></paper-icon-button>
+                </core-tooltip>
+                <core-tooltip label="Calibrate">
+                  <paper-icon-button icon="image:auto-fix" on-tap="{{showCalibration}}" ></paper-icon-button>
+                </core-tooltip>
+                <core-tooltip label="Settings">
+                  <paper-icon-button icon="settings"></paper-icon-button>
+                </core-tooltip>
+                <core-tooltip label="Save scan">
+                  <paper-icon-button icon="file-download" disabled></paper-icon-button>
+                </core-tooltip>
+                <core-tooltip label="Connect to scanner">
+                  <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
+                </core-tooltip>
+              </core-selector>
               
               <paper-menu-button icon="more-vert" halign="right" valign="top">
                   <paper-item icon="drive-keep" label="Menu Item 1"></paper-item>
@@ -82,7 +92,14 @@
                 </three-js-viewport>
             </three-js>
 
-            <div id="settings">
+            <core-pages selected="{{$.menuItems.selected}}" >
+              <div id="scanning"> stand in for settings</div>
+              <div id="calibration"> Calibration
+                <canvas id="calibCam" width="320" height="240"></canvas>
+                <paper-icon-button fill id="doCalib" label="Calibrate" icon="image:auto-fix" on-tap="{{calibrate}}" disabled?="{{!connected}}"></paper-icon-button>
+
+              </div>
+              <div id="settings">
                 Serial
                 <core-dropdown selected="1" >
                   <template repeat="{{port in serialPorts}}">
@@ -174,6 +191,11 @@
                 </div>
               </section>            
             </div>
+
+
+            </core-pages>
+            
+      
             
             <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
@@ -183,7 +205,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
 
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged","calibImage"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -224,6 +246,8 @@
                   this.$.socketIo.addEventListener('s-io-status',       this.onSIOStatus.bind(this) );
                   this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
                   this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-calibImage'   ,this.onSIOCalibImage.bind(this) );
+                  
                 },
                 domReady:function(){
                   var radius   = 100,
@@ -247,10 +271,8 @@
                     this.outMessage = cmd;
                 },
                 showToast:function(){
-                  //console.log("this.$.toast");//,this.$.toast3);
                   this.$.toast2.show();
                   this.$.foo.toggle();
-                  //this.querySelector('#toast3').show();
                 },
                 //attribute change handlers
                 laserToggledChanged:function()
@@ -314,6 +336,26 @@
                   var particles = new THREE.ParticleSystem( geometry, pMaterial );//var particles = new THREE.PointCloud( geometry, pMaterial );
       
                   this.triDViewer.addToScene( particles );
+                },
+                onSIOCalibImage:function(e,detail,sender){
+                  var data = e.detail.msg.data;
+                  console.log("calibration image recieved",data);
+
+                  var canvas = this.$.calibCam ;
+                  var ctx = canvas.getContext('2d');
+
+                  var uint8Arr = new Uint8Array(data);//.buffer);
+                  var str = String.fromCharCode.apply(null, uint8Arr);
+                  var base64String = btoa(str);
+
+                  var img = new Image();
+                  img.onload = function() {
+                      var x = 0;
+                      var y = 0;
+                      ctx.drawImage(this, x, y);
+                  }
+                  img.src = 'data:image/png;base64,' + base64String;
+
                 },
                 //internal api
                 setupVideo:function(){
@@ -396,6 +438,11 @@ ctx.drawImage(video, 0, 0, 640, 480);
                     console.log("detectLaser");
                     this.sendMessage({event:"detectLaser",data:{debug:this.debugToggled}});//data: canvas.toDataURL("image/jpeg")
                     this.laserDetected=false;
+                },
+                calibrate:function(){
+                  console.log("starting calibration");
+                  this.sendMessage({event:"calibrate", data:{debug:this.debugToggled}});
+                  this.calibrationStarted=true;
                 }
             });
         </script>

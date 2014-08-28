@@ -186,5 +186,17 @@ Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
     return model;
 }
 
+//TODO: this should actually do some things !
+Scanner.prototype.calibrate = function *(debug)
+{
+    var img = yield this.camera.read();
+    img.resize(320,240);
+    this.vision.drawHelperLines( img );
+
+
+    var buff = img.toBuffer()
+    return buff;
+}
+
 
 module.exports = Scanner;

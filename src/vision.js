@@ -16,29 +16,37 @@ var Vision = function()
 Vision.prototype={};
 
 
-Vision.prototype.detectLines = function*( imLaser, imNoLaser, threshold)
+Vision.prototype.detectLines = function( imLaser, imNoLaser, threshold, debug)
 {
   var diff = new cv.Matrix(imLaser.width(), imLaser.height());
   diff.absDiff(imLaser, imNoLaser);
 
   var lower_threshold = [46, 0, 0];
-  var upper_threshold = [150, 196, 255];
+  var upper_threshold = [100, 100, 255];
   diff.inRange(lower_threshold, upper_threshold);
+  if(debug) diff.save('./detectLines_Range.png');
 
   var imCanny = diff.copy();
   //imCanny.convertGrayscale();
-  var lowThresh = 50;
-  var highThresh = 200;
-  var nIters = 1;
+  var lowThresh = 200;
+  var highThresh = 255;
+  var nIters = 5;
   var maxArea = 2500;
 
   var GREEN = [0, 255, 0]; //B, G, R
   var WHITE = [255, 255, 255]; //B, G, R
   var RED   = [0, 0, 255]; //B, G, R
   var BLUE   = [255, 0, 0]; //B, G, R
-  imCanny.canny(lowThresh, highThresh,threshold);
-  //imCanny.dilate(nIters);
-  imCanny.save('./frameDiffOut_Canny.png');
+
+  imCanny.dilate(nIters);
+  if(debug) imCanny.save('./detectLines_dilate.png');
+
+  imCanny.erode(6);
+  if(debug) imCanny.save('./detectLines_erode.png');
+
+  imCanny.canny(lowThresh, highThresh, 100);
+  if(debug) imCanny.save('./detectLines_Canny.png');
+
 
   var houghInput = diff;
   //var outputDebug = new cv.Matrix(im.height(), im.width()); 
@@ -59,12 +67,10 @@ Vision.prototype.detectLines = function*( imLaser, imNoLaser, threshold)
 
     var lngSqrt= (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1);
     if(lngSqrt>=curLng) {curLng = lngSqrt; longest=i;}
-    //outputDebug.line([cur[0],cur[1]], [cur[2], cur[3]],BLUE)
   }
   console.log(foundLines);
   console.log("longest", longest);
   var best = foundLines[longest];
-  //outputDebug.line([cur[0],cur[1]], [cur[2], cur[3]],RED);
 
   if(!(best)){
      console.log("No lines found"); return null;
@@ -137,6 +143,11 @@ Vision.prototype.detectLines3 = function( imLaser, imNoLaser, threshold)
 
 Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
 {
+  var gaussBlurKernel = [15,15];
+  var threshold = 30;
+  var erosion = 2;
+
+
   var bwLaserOff = laserOff.copy();
   bwLaserOff.convertGrayscale();//convert to grayscale
 
@@ -146,78 +157,104 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
   var diffImage = new cv.Matrix(laserOn.width(), laserOn.height());
   diffImage.absDiff(bwLaserOn, bwLaserOff);//subtract both grayscales
   
-  var tresh2Image = diffImage.clone();
+  //var tresh2Image = diffImage.clone();
   
   console.log("DEBUG", debug);
   if(debug) diffImage.save("diffImage.png");
     
   //console.log("applying gaussian Blur");
   var gaussImage = diffImage.clone();
-  gaussImage.gaussianBlur([15,15]);//,cv::Size(15,15),12,12)
+  gaussImage.gaussianBlur(gaussBlurKernel);//,cv::Size(15,15),12,12)
   
   if(debug) gaussImage.save("gaussImage.png");
   
-
-  var tmp = new cv.Matrix(laserOn.width(), laserOn.height());
-  tmp.absDiff(diffImage, gaussImage ); //diffImage-gaussImage
-  diffImage = tmp;
+  //var tmp = new cv.Matrix(laserOn.width(), laserOn.height());
+  //tmp.absDiff(diffImage, gaussImage ); //diffImage-gaussImage
+  //diffImage = tmp;
+  diffImage = gaussImage;
   
-  if(debug) diffImage.save("diffImagePostBlur.png");
-  
-  var threshold = 1;
   //console.log("applying threshold");
-  diffImage.threshold(threshold, 255,"Threshold to Zero");//apply threshold
-  if(debug) diffImage.save("diffImagePostThreshold.png");
+  //TODO: threshold RETURNS A NEW image
+  diffImage = diffImage.threshold(threshold, 255);//apply threshold
+
+  if(debug) diffImage.save("postThreshold.png");
+
   //console.log("applying erode");
-  diffImage.erode( 1 );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
+  diffImage.erode( erosion );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
   if(debug) diffImage.save("diffImagePostErode.png");
   //console.log("applying canny");
   diffImage.canny( 20,50 );
+
   if(debug) diffImage.save("diffImagePostCanny.png");
-
-
+  console.log("diffImage channels", diffImage.channels());
+ 
+  /////////
   var rows = laserOff.height(); 
   var cols = laserOff.width();
-  /////////
 
-  var laserImage = new cv.Matrix(rows, cols);
-  var threshold = 10;//250
-  var minDist = 80;//40
+  var laserImage = laserOff.copy(); //new cv.Matrix(rows, cols);//attempted fix for node-opencv issue 
+  rows = laserImage.height(); 
+  cols = laserImage.width();
+
+  var threshold = 250;//250
+  var maxDist = 140;//40
+/*
+  for(var y = 0; y <rows; y++){
+    //for(j=0; j<cols; j++){
+      //node opencv workaround
+      var foo = diffImage.pixelRow(y);
+      for(var i=0;i<foo.length;i++)
+      {
+          if(foo[i]>0)
+          {
+          console.log("foo",foo[i]);}
+      }
+      
+      //laserImage.pixel(y,j,[0,255,0]); 
+      //laserImage.pixel(y,j,255);
+    //}
+  }*/
+  //laserImage.save("diffResult.png");
+
 
   var edges = new Array(cols);
     //int edges[cols]; //contains the cols index of the detected edges per row
     for(var y = 0; y <rows; y++){
-        //reset the detected edges
-        for(j=0; j<cols; j++){ edges[j]=-1; }
+        //reset the detected edges//initialize bg color
+        for(j=0; j<cols; j++){ 
+          edges[j]=-1;
+          //node opencv workaround
+          laserImage.pixel(y,j,[0,0,0]); 
+        }
         var j=0;
         for(var x = 0; x<cols; x++){
             //node opencv workaround
-            var pixelVal = diffImage.pixel(y,x);
-            pixelVal=(pixelVal[0]+pixelVal[1]+pixelVal[2])/3;
-             
-            if(pixelVal > threshold)
+            var pixelValRaw = diffImage.pixel(y,x);
+            var pixelVal=(pixelValRaw[0]+pixelValRaw[1]+pixelValRaw[2]);
+
+            //if(pixelValRaw[2] > threshold || pixelValRaw[1]>threshold || pixelValRaw[2]>threshold)
+            if(pixelVal>threshold)
             {
-              //console.log("pixelVal", pixelVal);
                edges[j]=x;
                j++;
             }
         }
         //iterate over detected edges, take middle of two edges
         for(var j=0; j<cols-1; j+=2){
-            if(edges[j]>=0 && edges[j+1]>=0 && (edges[j+1]-edges[j])<minDist){
+            if(edges[j]>=0 && edges[j+1]>=0 && (edges[j+1]-edges[j])<maxDist){
                 var middle = ~~((edges[j]+edges[j+1])/2);
-                //console.log("s", y , middle);
+                console.log("s", y , middle);
                 //laserImage.set(y,middle,255)//[255,255,255]);// = 255;//TODO: use pixel()??
                 //laserImage.set(y,middle,255);
-                //laserImage.pixel(y,middle,[255,255,255]);
-                laserImage.rectangle([middle, y], [middle, y], [255, 255, 255], 1);
+                //laserImage.pixel(y,middle,[0,0,255]);
+                laserImage.rectangle([y, middle], [y, middle], [255, 255, 255], 1);
             }
         }
     }
     
-    console.log("edges", edges);
-    //cv::cvtColor(laserImage, result, CV_GRAY2RGB); //convert back ro rgb
+    //console.log("edges", edges);
     var result = laserImage.copy();
+    ///result.convertGrayscale();
     if(debug) result.save("diffResult.png");
     console.log("result channels", result.channels());
     return result;

@@ -5,7 +5,9 @@
 
 #video{
   display: none;}
+
 #videoCanvas{
+  display: none;
 } 
 
 three-js {
@@ -47,6 +49,16 @@ three-js[resolved] {
 
 
 /*styling of core/paper polymer elements*/
+
+core-pages {
+      width: 300px;
+      height: 100%;
+      position:absolute;z-index:11;top:40px;right:40px;
+    }
+
+
+
+
 core-toolbar /deep/ .toolbar-tools {
   position: relative;
   height: 34px;
@@ -73,7 +85,6 @@ core-toolbar /deep/ core-icon:hover {
   color: #ffc639;
 }
   
-
 core-toolbar /deep/ paper-button[autofocus] {
   color: #4285f4;
 }

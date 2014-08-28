@@ -40,9 +40,9 @@ describe("vision class specs", function() {
       var l2 = {a:-3.6,b:7};
       var intersection = vision.computeIntersectionOfLines(l1,l2);
       expect(intersection).toEqual({ x : -2.2205882352941178, y : 0, z : 14.994117647058825 });
-  });*/
+  });
   
-  
+  */
   it("can extract laser lines using two input images/matrices", function(done) {
   
     co(function* (){
@@ -58,10 +58,16 @@ describe("vision class specs", function() {
   });
   
   /*
-  it("can detect lines using two input images/matrices", function() {
-      //var imLaser = ;
-      //var imNoLaser = ;
-      //var bestMatch = vision.detectLines(imLaser, imNoLaser);
+  it("can detect laser lines using two input images/matrices", function(done) {
+  
+    co(function* (){
+
+      var imLaser = yield readCamera('testData/calib_camLaser.png');
+      var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
+
+      var bestMatch = vision.detectLines(imLaser, imNoLaser, 10, true);
+      done();
+      })();
   });*/
   
  
