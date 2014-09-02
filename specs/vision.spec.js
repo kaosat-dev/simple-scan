@@ -44,13 +44,24 @@ describe("vision class specs", function() {
   
   */
   it("can extract laser lines using two input images/matrices", function(done) {
-  
+    var tgtWidth = 640//160;
+    var tgtHeight = 480//120;
     co(function* (){
 
+
+    try
+    {
      var imLaser = yield readCamera('testData/calib_camLaser.png');
      var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
+     //imLaser.resize(tgtWidth,tgtHeight);
+     //imNoLaser.resize(tgtWidth,tgtHeight);
+
      var bestMatch = vision.extractLaserLine( imNoLaser, imLaser, true );
-     
+    }
+    catch(error)
+    {
+      console.log("error",error);
+    }
      //var foo = vision.detectLines3( imNoLaser, imLaser );
      
      done();

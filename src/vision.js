@@ -184,71 +184,103 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
   if(debug) diffImage.save("diffImagePostErode.png");
   //console.log("applying canny");
   diffImage.canny( 20,50 );
-
+  diffImage.cvtColor('CV_GRAY2BGR');
   if(debug) diffImage.save("diffImagePostCanny.png");
+  
   console.log("diffImage channels", diffImage.channels());
  
   /////////
   var rows = laserOff.height(); 
   var cols = laserOff.width();
 
-  var laserImage = laserOff.copy(); //new cv.Matrix(rows, cols);//attempted fix for node-opencv issue 
+  var laserImage = laserOn.copy(); //new cv.Matrix(rows, cols);//attempted fix for node-opencv issue 
   rows = laserImage.height(); 
   cols = laserImage.width();
 
   var threshold = 250;//250
-  var maxDist = 140;//40
-/*
+  var maxDist = 40;//40
+
   for(var y = 0; y <rows; y++){
-    //for(j=0; j<cols; j++){
-      //node opencv workaround
-      var foo = diffImage.pixelRow(y);
-      for(var i=0;i<foo.length;i++)
-      {
-          if(foo[i]>0)
-          {
-          console.log("foo",foo[i]);}
-      }
-      
-      //laserImage.pixel(y,j,[0,255,0]); 
-      //laserImage.pixel(y,j,255);
-    //}
-  }*/
+    for(x=0; x<cols; x++){
+        //laserImage.set(y,x,0); 
+        laserImage.pixel(y,x,[0,0,0]); 
+    }
+  }
   //laserImage.save("diffResult.png");
 
+  var testFlag = false;
+  var fooBar = 0;
 
-  var edges = new Array(cols);
-    //int edges[cols]; //contains the cols index of the detected edges per row
+  var edges = new Array(cols);//int edges[cols]; //contains the cols index of the detected edges per row
     for(var y = 0; y <rows; y++){
         //reset the detected edges//initialize bg color
         for(j=0; j<cols; j++){ 
           edges[j]=-1;
           //node opencv workaround
-          laserImage.pixel(y,j,[0,0,0]); 
+          //laserImage.pixel(j,y,[0,0,0]); 
+          
         }
+        
+        var pixRow = diffImage.pixelRow(y);  
         var j=0;
         for(var x = 0; x<cols; x++){
+          var idx= x*3;
+          var pixelValRaw = [pixRow[idx],pixRow[idx+1],pixRow[idx+2]];
+          var pixelVal=(pixelValRaw[0]+pixelValRaw[1]+pixelValRaw[2])/3;
+           
+          if(pixelVal>160){
+             // console.log("pixelRow",diffImage.pixelRow(y));
+//console.log("pixelVal",pixelVal,idx);
+            //return;
+          }
+           if(pixelVal>threshold)
+            {
+             //console.log("pixelVal",pixelVal,idx);
+               edges[j]=x;
+               j++;
+            }
+        }
+        /*for(var x = 0; x<cols; x++){
             //node opencv workaround
-            var pixelValRaw = diffImage.pixel(y,x);
-            var pixelVal=(pixelValRaw[0]+pixelValRaw[1]+pixelValRaw[2]);
+            //if(diffImage.channels()==3)
+            //{
+              var pixelValRaw = diffImage.pixel(y,x);
+              var pixelVal=(pixelValRaw[0],pixelValRaw[1]+pixelValRaw[2])/3;
 
-            //if(pixelValRaw[2] > threshold || pixelValRaw[1]>threshold || pixelValRaw[2]>threshold)
             if(pixelVal>threshold)
             {
                edges[j]=x;
                j++;
             }
-        }
+        }*/
+          //console.log("edges",edges);
         //iterate over detected edges, take middle of two edges
         for(var j=0; j<cols-1; j+=2){
-            if(edges[j]>=0 && edges[j+1]>=0 && (edges[j+1]-edges[j])<maxDist){
+            //
+            if(edges[j]>=0 && edges[j+1]>=0 && ((edges[j+1]-edges[j])<maxDist) ) {
+                var foo = edges[j]+edges[j+1]
                 var middle = ~~((edges[j]+edges[j+1])/2);
-                console.log("s", y , middle);
+                //console.log("seg", y , middle,"foo", foo,edges[j],edges[j+1],j);
                 //laserImage.set(y,middle,255)//[255,255,255]);// = 255;//TODO: use pixel()??
-                //laserImage.set(y,middle,255);
-                //laserImage.pixel(y,middle,[0,0,255]);
-                laserImage.rectangle([y, middle], [y, middle], [255, 255, 255], 1);
+                
+                if(laserImage.channels()==1)
+                {
+                  //laserImage.set(y,middle,255);
+                }
+                else
+                {
+                  laserImage.pixel(y,middle,[255,255,255]);
+                }
+                //
+                //laserImage.rectangle([y, middle], [y, middle], [255, 255, 255], 1);
+                testFlag = true;
             }
+        }
+
+        if(testFlag)
+        {
+          //console.log("row:",y+"/"+rows,"edges",edges);
+          //break;
         }
     }
     
