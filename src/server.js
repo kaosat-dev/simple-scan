@@ -109,7 +109,7 @@ io.sockets.on('connection', function (socket) {
         {
            steps = -steps;
         }
-        yield scanner.turnTable.rotateBySteps(data.steps);
+        yield scanner.turnTable.rotateByDegrees(data.degrees);
     })();
   });
 
@@ -135,7 +135,7 @@ io.sockets.on('connection', function (socket) {
    socket.on('scan',function(data){
     console.log("starting scan",data);
     co(function* (){
-        var scanData = yield scanner.scan(data.stepDegrees,data.debug);
+        var scanData = yield scanner.scan(parseInt(data.stepDegrees),data.debug);
         socket.emit('scanFinished',{data:scanData});
     })();
    });

@@ -7,11 +7,13 @@ var TurnTable = function(serial)
  
   this.serial = serial;
 
-  var stepsPerRot = 400; //steps per 360 deg turn
+  var stepsPerRot = 200; //steps per 360 deg turn
   var microSteps = 16;
-  var totalSteps = 6400;//actual steps per 360 deg turn
+  var totalSteps = stepsPerRot*microSteps;//actual steps per 360 deg turn
   this.stepsPerDeg = totalSteps/360;
   this.isOn = false;
+
+  this.degreesPerStep = 360.0/200.0/16.0; //the size of a microstep
 }
 
 TurnTable.prototype={};
@@ -41,19 +43,20 @@ TurnTable.prototype.toggle=function*(flag)
   this.isOn= isOn;
 }
 
-TurnTable.prototype.rotateByAngle=function*(angle)
+TurnTable.prototype.rotateByDegrees=function*(degrees)
 {
-  if(angle>0)
+  if(degrees>0)
   {
     yield this.sendCommand([203]);
+    this.rotation.y += degrees;
   }
   else
   {
     yield this.sendCommand([204]);
+    this.rotation.y -= degrees;
   }
 
-  //FIXME: param is in steps, not angle
-  var turnTableSteps = angle*this.stepsPerDeg;
+  var turnTableSteps = degrees*this.stepsPerDeg;
   yield this.sendCommand([202,turnTableSteps]);
 }
 

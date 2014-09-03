@@ -5,7 +5,11 @@ var Minilog=require("minilog");
 Minilog.pipe(Minilog.suggest) // filter
        .pipe(Minilog.defaultFormatter) // formatter
        .pipe(Minilog.defaultBackend); // backend - e.g. the console
-Minilog.suggest.deny('vision', 'debug')
+Minilog
+  .suggest
+    .clear()
+    .deny('vision', 'warn');
+Minilog.enable();
 var log = Minilog('vision');
 
 var config = require("./config");
@@ -93,35 +97,6 @@ Vision.prototype.detectLines = function( imLaser, imNoLaser, threshold, debug)
 }
 
 
-Vision.prototype.detectLines2 = function( imLaser, imNoLaser)
-{
-  console.log("starting extractLaserLine");
-  var diff = new cv.Matrix(imLaser.width(), imLaser.height());
-  diff.absDiff(imLaser, imNoLaser);
-
-  var lower_threshold = [46, 0, 0];
-  var upper_threshold = [150, 196, 255];
-  diff.inRange(lower_threshold, upper_threshold);
-
-  var imCanny = diff.copy();
-  //imCanny.convertGrayscale();
-  var lowThresh = 50;
-  var highThresh = 200;
-  var nIters = 1;
-  var maxArea = 2500;
-
-  var GREEN = [0, 255, 0]; //B, G, R
-  var WHITE = [255, 255, 255]; //B, G, R
-  var RED   = [0, 0, 255]; //B, G, R
-  var BLUE   = [255, 0, 0]; //B, G, R
-  imCanny.canny(lowThresh, highThresh,3);
-  imCanny.dilate(nIters);
-  imCanny.save('./frameDiffOut_Canny.png');
-
-  console.log("finished extractLaserLine");
-  return imCanny;
-}
-
 
 Vision.prototype.detectLaserLine =  function(laserOff, laserOn, threshold, debug)
 {
@@ -130,15 +105,15 @@ Vision.prototype.detectLaserLine =  function(laserOff, laserOn, threshold, debug
   var houghInput = imLaserLine;
   
   //FIXME: hack
-  var lower_threshold = [46, 0, 0];
+  /*var lower_threshold = [46, 0, 0];
   var upper_threshold = [255, 255, 255];
   houghInput.inRange(lower_threshold, upper_threshold);
-  houghInput.save("houghInput.png");
+  houghInput.save("houghInput.png");*/
   
   //args : rho:1, theta:PI/180, threshold:80, minLineLength:30, maxLineGap:10 
   var foundLines = houghInput.houghLinesP(1,Math.PI/2,20,50,10);
-  //FIXME: it seems as though the found line are already in descending order ??
-  var best = foundLines.pop();
+  console.log("foundLines",foundLines);
+  var best = foundLines.pop();//TODO: it seems as though the found line are already in descending order ??
   
   if(!(best)){
      console.log("No lines found"); return null;
@@ -167,7 +142,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
   
   //var tresh2Image = diffImage.clone();
   
-  console.log("DEBUG", debug);
+  log.debug("DEBUG", debug);
   if(debug) diffImage.save("diffImage.png");
     
   //console.log("applying gaussian Blur");
@@ -195,7 +170,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
   diffImage.cvtColor('CV_GRAY2BGR');
   if(debug) diffImage.save("diffImagePostCanny.png");
   
-  console.log("diffImage channels", diffImage.channels());
+  log.debug("diffImage channels", diffImage.channels());
  
   /////////
   var rows = laserOff.height(); 
@@ -226,9 +201,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
           edges[j]=-1;
           //node opencv workaround
           //laserImage.pixel(j,y,[0,0,0]); 
-          
         }
-        
         var pixRow = diffImage.pixelRow(y);  
         var j=0;
         for(var x = 0; x<cols; x++){
@@ -302,8 +275,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
 
 Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model)
 {
-  console.log("/////////////////");
-  console.log("putPointsFromFrameToCloud");
+  log.info("////////putPointsFromFrameToCloud/////////");
     
   //extract laser line from the two images
   var laserLineIm = this.extractLaserLine(laserOff,laserOn);
@@ -312,7 +284,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
   //position of the laser line on the back plane in world coordinates
   var cvLaserLinePosition = this.convertPointToCvPoint(laser.pointPosition);
   var laserPos = cvLaserLinePosition.x; //constant over all y
-  console.log("laserPosition",laser.pointPosition, "cvLaserLinePosition",laserPos);
+  //console.log("laserPosition",laser.pointPosition, "cvLaserLinePosition",laserPos);
 
   //laserLine is result of subLaser2, is in RGB
   var cols = laserLineIm.width();//laserLine.height();
@@ -321,12 +293,13 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
   //create new image in black&white
   var bwImage = laserLineIm.copy();
   //bwImage.convertGrayscale(); 
-  bwImage.save('laserLineBW.png');
+  //bwImage.save('laserLineBW.png');
   
   //TODO: move these to config
   var upperFrameLimit = 0;
   var lowerFrameLimit = 30;
   var laserOffset = 90;
+  var foundPoints = 0;
     log.debug("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
     //now iterating from top to bottom over bwLaserLine frame
     //no bear outside of these limits :) cutting of top and bottom of frame
@@ -338,7 +311,6 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
         var pixRow = bwImage.pixelRow(y);  
         var minX = (laserPos+laserOffset);
         //console.log("X Going from ",cols-1 ,"to", minX," ////laserPos",laserPos);//+ANALYZING_LASER_OFFSET;
-
         //console.log("pixRow",pixRow);
         for(var x = cols-1; x >= minX; x -= 1){
             var idx= x*3;
@@ -364,7 +336,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
 
                 //convert to world coordinates withouth depth
                 var point = this.convertCvPointToPoint(reflectedLaserPos);
-                console.log("convertedPoint", point);
+                log.debug("convertedPoint", point);
 
                 var l1 = this.computeLineFromPoints(camera.position, point);
                 var l2 = this.computeLineFromPoints(laser.position, laser.pointPosition);
@@ -373,7 +345,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 point.x = intersection.x;
                 point.z = intersection.z;
 
-                console.log("intersection at , point so far:", intersection,point);
+                //console.log("intersection at , point so far:", intersection,point);
 
                 //At this point we know the depth=z. Now we need to consider the scaling depending on the depth.
                 //First we move our point to a camera centered cartesian system.
@@ -382,7 +354,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 //Redo the translation to the box centered cartesion system.
                 point.y += camera.position.y;
 
-                console.log("geting color, point so far:", point);
+                //console.log("geting color, point so far:", point);
                 //get color from picture without laser
                 /*var r = laserOff.get(y,x)[2];
                 var g = laserOff.get(y,x)[1];
@@ -408,16 +380,17 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
 
                 log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");
                 if(point.y>lowerLimit+0.5 && hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
-                    log.debug("adding new point to thingamagic",point);
+                    //log.info("adding new point to thingamagic",point);
                     model.push( point );
+                    foundPoints+=1;
                     //model->addPointToPointCloud(point);
                 }
-                return;
                 break;
             }
         }
         log.debug(" ");
     }
+    log.info("done putPointsFromFrameToCloud: points found:",foundPoints);
 
 }
 

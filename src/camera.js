@@ -34,7 +34,7 @@ Camera.prototype.read=function*()
   if(!(this.isOn)) this.connect();
 
   var readCamera    = Q.nbind(this.camera.read, this.camera);
-  yield readCamera();//empty buffer?
+  yield readCamera();yield readCamera();yield readCamera();yield readCamera();yield readCamera();//empty buffer?
   var im = yield readCamera();
   if(this.flipY) im.rotate(180);
   return im;

@@ -1,4 +1,6 @@
 var Q = require('q');
+var Minilog=require("minilog");
+var fs = require('fs');
 var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort;
 var sleep      = require('./sleep');
@@ -7,6 +9,19 @@ var Laser     = require("./laser");
 var Camera    = require("./camera");
 var TurnTable = require("./turntable");
 var Vision    = require("./vision");
+
+
+Minilog.pipe(Minilog.suggest) // filter
+       .pipe(Minilog.defaultFormatter) // formatter
+       .pipe(Minilog.defaultBackend); // backend - e.g. the console
+Minilog
+  .suggest
+    .clear()
+    .deny('vision', 'info');
+Minilog.enable();
+var log = Minilog('vision');
+
+var config = require("./config");
 
 /////////
 
@@ -95,20 +110,21 @@ Scanner.prototype.sendCommand=function(command)
 //detect laser line
 Scanner.prototype.detectLaser = function *(debug)
 {
-    console.log("attempting laser detection");
+    log.info("attempting laser detection");
     var threshold = 40;
     
     //make sure laser is off
     yield this.laser.turnOff();
     var imNoLaser = yield this.camera.read();
+    log.info("got camera image with no laser");
     if(debug) imNoLaser.save(this.outputFolder+'calib_camNoLaser.png');
 
     
     //make sure laser is on
     yield this.laser.turnOn();
-    yield sleep(250);
+    yield sleep(300);
     var imLaser = yield this.camera.read();
-    console.log("got camera image with laser");
+    log.info("got camera image with laser");
     if(debug) imLaser.save(this.outputFolder+'calib_camLaser.png');
 
     //imNoLaser.resize(1280,960);
@@ -118,8 +134,8 @@ Scanner.prototype.detectLaser = function *(debug)
     //make sure laser is off
     yield this.laser.turnOff();
 
-    console.log("frames grabbed, now detecting...");
-    var p = yield this.vision.detectLines( imLaser, imNoLaser, threshold );
+    log.info("frames grabbed, now detecting...");
+    var p = this.vision.detectLaserLine( imNoLaser, imLaser, threshold ,debug);
     console.log("got result", p);
     if(!(p)){return false;}
     this.laser.pointPosition = p;
@@ -133,7 +149,9 @@ dummy: do not actually do a scan, use pre-existing images instead
 */
 Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
 {
-   var yDpi = 10;
+   log.info("started scanning in ",stepDegrees,"increments, totalslices:",360/stepDegrees);
+   var writeFile = Q.denodeify(fs.writeFile);
+   var yDpi = 2;
    var model = [];//FIXME:stand in for now
 
    //detect laser line
@@ -152,6 +170,7 @@ Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
    //make sure laser is on
    //yield this.laser.turnOn();
    //and turntable too
+   this.turnTable.rotation.y = 0;
    yield this.turnTable.toggle(true);
 
     //iterate over a complete turn of the turntable
@@ -175,14 +194,16 @@ Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
 
         //TODO: stream data to browser
         //geometries->setPointCloudTo(model->pointCloud);
+        console.log("foo",i);
 
         //turn turntable a step
-        yield this.turnTable.rotateByAngle(stepDegrees);
+        yield this.turnTable.rotateByDegrees(stepDegrees);
     }
     this.scanning = false; //stop scanning
     yield this.turnTable.toggle(false);
 
-    console.log("done scanning: result model", model);
+    log.info("done scanning: result model: "+model.length+" points");
+    yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(model));
     return model;
 }
 

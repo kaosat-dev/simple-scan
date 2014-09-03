@@ -113,6 +113,11 @@
                     <core-item value="10" label="10"></core-item>
                     <core-item value="45" label="45"></core-item>
                 </core-dropdown>
+
+
+                <paper-input  id="angleToQuality" floatingLabel label="angleQuality (lower == better" type="number" error="Input is not a number!"
+                  value={{scanQual}}
+                    ></paper-input>  
                 <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{debugToggled}}"></paper-checkbox>
                 
                 <input type="button" id="connect" value="connect" on-tap="{{connect}}"> </input>
@@ -234,7 +239,7 @@
                 angleToRotate:10,
                 _stepsPerRevo:400,//how many steps per full rotation
 
-                scanQual:10,
+                scanQual:45,
                 scanData:null,
                 //
                 userToastMessage:"Disconnected from socket.io server!",
@@ -258,9 +263,9 @@
                   geometry.vertices.shift();
                   this.$.threeJs.addToScene( new THREE.Line( geometry, material ) );
 
-                  var geometry = new THREE.Geometry();
+                  /*var geometry = new THREE.Geometry();
                   var pMaterial = new THREE.ParticleBasicMaterial({ size: 5,color: 0xFF0000});//new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
-                  var particles = new THREE.ParticleSystem( geometry, pMaterial );// new THREE.PointCloud( geometry, pMaterial );
+                  var particles = new THREE.ParticleSystem( geometry, pMaterial );// new THREE.PointCloud( geometry, pMaterial );*/
       
                   this.triDViewer = this.$.threeJs;
                 },
@@ -331,8 +336,17 @@
                     var current = scanData[i];
                     geometry.vertices.push( new THREE.Vector3(current.x,current.y,current.z) );
                   }
+                  geometry.applyMatrix(new THREE.Matrix4().makeScale( 10, 10, 10 ) );
 
-                  var pMaterial = new THREE.ParticleBasicMaterial({ size: 2,color: 0xFF0000});//var pMaterial = new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
+                  /*var axis = new THREE.Vector3(1,0,0);
+                  var radians = Math.PI/2;
+                  var rotWorldMatrix = new THREE.Matrix4();
+                  rotWorldMatrix.makeRotationAxis( axis.normalize(), radians);
+                  rotWorldMatrix.multiply( geometry.matrix);
+                  geometry.matrix = rotWorldMatrix
+                  geometry.rotation.setFromRotationMatrix( geometry.matrix )*/
+
+                  var pMaterial = new THREE.ParticleBasicMaterial({ size: 0.2,color: 0xFF0000});//var pMaterial = new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
                   var particles = new THREE.ParticleSystem( geometry, pMaterial );//var particles = new THREE.PointCloud( geometry, pMaterial );
       
                   this.triDViewer.addToScene( particles );
@@ -422,11 +436,11 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 },
                 rotateCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CW",steps:this.stepsToRotate}});
+                    this.sendMessage({event:"rotate", data: {direction:"CW",degrees:this.angleToRotate}});
                 },
                 rotateCCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CCW",steps:this.stepsToRotate}});
+                    this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-this.angleToRotate}});
                 },
                 startScan:function()
                 {
