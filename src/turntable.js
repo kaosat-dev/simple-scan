@@ -1,6 +1,8 @@
+var config = require('./config');
+
 var TurnTable = function(serial)
 {
-  this.position = {x:0,y:0,z:0};
+  this.position = {x:0,y:0,z:7.5};
   this.rotation = {x:0,y:0,z:0};
  
   this.serial = serial;

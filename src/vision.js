@@ -1,4 +1,14 @@
-var cv = require('opencv')
+var cv = require('opencv');
+var Minilog=require("minilog");
+
+//Minilog.pipe(Minilog.suggest).pipe(Minilog.backends.console.formatColor).pipe(Minilog.backends.console)
+Minilog.pipe(Minilog.suggest) // filter
+       .pipe(Minilog.defaultFormatter) // formatter
+       .pipe(Minilog.defaultBackend); // backend - e.g. the console
+Minilog.suggest.deny('vision', 'debug')
+var log = Minilog('vision');
+
+var config = require("./config");
 
 //////////////////////////
 var Vision = function()
@@ -113,10 +123,10 @@ Vision.prototype.detectLines2 = function( imLaser, imNoLaser)
 }
 
 
-Vision.prototype.detectLines3 = function( imLaser, imNoLaser, threshold)
+Vision.prototype.detectLaserLine =  function(laserOff, laserOn, threshold, debug)
 {
-  var imLaserLine = this.extractLaserLine( imNoLaser, imLaser );
-  //imLaserLine.convertHSVscale();
+  var imLaserLine = this.extractLaserLine( laserOff, laserOn, debug );
+  imLaserLine.convertGrayscale();
   var houghInput = imLaserLine;
   
   //FIXME: hack
@@ -137,8 +147,6 @@ Vision.prototype.detectLines3 = function( imLaser, imNoLaser, threshold)
   var point = this.convertCvPointToPoint( cvPoint );
   return point;
 }
-
-
 
 
 Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
@@ -169,7 +177,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
   if(debug) gaussImage.save("gaussImage.png");
   
   //var tmp = new cv.Matrix(laserOn.width(), laserOn.height());
-  //tmp.absDiff(diffImage, gaussImage ); //diffImage-gaussImage
+  //tmp.absDiff(diffImage, gaus        //now iteratinf from right to left over bwLaserLine framesImage ); //diffImage-gaussImage
   //diffImage = tmp;
   diffImage = gaussImage;
   
@@ -262,7 +270,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
                 var middle = ~~((edges[j]+edges[j+1])/2);
                 //console.log("seg", y , middle,"foo", foo,edges[j],edges[j+1],j);
                 //laserImage.set(y,middle,255)//[255,255,255]);// = 255;//TODO: use pixel()??
-                
+                        //now iteratinf from right to left over bwLaserLine frame
                 if(laserImage.channels()==1)
                 {
                   //laserImage.set(y,middle,255);
@@ -288,9 +296,131 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
     var result = laserImage.copy();
     ///result.convertGrayscale();
     if(debug) result.save("diffResult.png");
-    console.log("result channels", result.channels());
     return result;
 }
+
+
+Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model)
+{
+  console.log("/////////////////");
+  console.log("putPointsFromFrameToCloud");
+    
+  //extract laser line from the two images
+  var laserLineIm = this.extractLaserLine(laserOff,laserOn);
+
+  //calculate position of laser in cv frame
+  //position of the laser line on the back plane in world coordinates
+  var cvLaserLinePosition = this.convertPointToCvPoint(laser.pointPosition);
+  var laserPos = cvLaserLinePosition.x; //constant over all y
+  console.log("laserPosition",laser.pointPosition, "cvLaserLinePosition",laserPos);
+
+  //laserLine is result of subLaser2, is in RGB
+  var cols = laserLineIm.width();//laserLine.height();
+  var rows = laserLineIm.height();//laserLine.width();
+
+  //create new image in black&white
+  var bwImage = laserLineIm.copy();
+  //bwImage.convertGrayscale(); 
+  bwImage.save('laserLineBW.png');
+  
+  //TODO: move these to config
+  var upperFrameLimit = 0;
+  var lowerFrameLimit = 30;
+  var laserOffset = 90;
+    log.debug("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
+    //now iterating from top to bottom over bwLaserLine frame
+    //no bear outside of these limits :) cutting of top and bottom of frame
+    for(var y = upperFrameLimit; y < rows-lowerFrameLimit; y+=dpiVertical )
+    {
+        //ANALYZING_LASER_OFFSET is the offset where we stop looking for a reflected laser, cos we might catch the non reflected
+        //now iteratinf from right to left over bwLaserLine frame
+
+        var pixRow = bwImage.pixelRow(y);  
+        var minX = (laserPos+laserOffset);
+        //console.log("X Going from ",cols-1 ,"to", minX," ////laserPos",laserPos);//+ANALYZING_LASER_OFFSET;
+
+        //console.log("pixRow",pixRow);
+        for(var x = cols-1; x >= minX; x -= 1){
+            var idx= x*3;
+            var pixelValRaw = [pixRow[idx],pixRow[idx+1],pixRow[idx+2]];
+            var pixelVal=(pixelValRaw[0]+pixelValRaw[1]+pixelValRaw[2])/3;
+            /*var pixelValRaw = bwImage.pixel(y,x);
+            var pixelVal=(pixelValRaw[0]+pixelValRaw[1]+pixelValRaw[2])/3;*/
+            //var pixelVal=bwImage.get(x,y);
+
+            //if(pixelValRaw[0]==255) console.log("Pixel value at {x:"+x+',y:'+y+'} is :'+pixelValRaw);
+            if(pixelVal>0)
+            {
+              log.debug("Pixel value at {x:"+x+',y:'+y+'} is :'+pixelVal,idx);
+            }
+            if(pixelVal>0){ //check if white=laser-reflection
+                log.debug("found point at x= "+ x+", y="+y);
+                //we have a white point in the grayscale image, so one edge laser line found
+                //no we should continue to look for the other edge and then take the middle of those two points
+                //to take the width of the laser line into account
+
+                //position of the reflected laser line on the image coord
+                var reflectedLaserPos = new cv.Point(x,y);
+
+                //convert to world coordinates withouth depth
+                var point = this.convertCvPointToPoint(reflectedLaserPos);
+                console.log("convertedPoint", point);
+
+                var l1 = this.computeLineFromPoints(camera.position, point);
+                var l2 = this.computeLineFromPoints(laser.position, laser.pointPosition);
+
+                var intersection = this.computeIntersectionOfLines(l1, l2);
+                point.x = intersection.x;
+                point.z = intersection.z;
+
+                console.log("intersection at , point so far:", intersection,point);
+
+                //At this point we know the depth=z. Now we need to consider the scaling depending on the depth.
+                //First we move our point to a camera centered cartesian system.
+                point.y -= camera.position.y;
+                point.y *= (camera.position.z - point.z)/(camera.position.z);
+                //Redo the translation to the box centered cartesion system.
+                point.y += camera.position.y;
+
+                console.log("geting color, point so far:", point);
+                //get color from picture without laser
+                /*var r = laserOff.get(y,x)[2];
+                var g = laserOff.get(y,x)[1];
+                var b = laserOff.get(y,x)[0];*/
+                //point.color = FSMakeColor(r, g, b);
+
+                //turning new point according to current angle of turntable
+                //translate coordinate system to the middle of the turntable
+                //console.log("computing, based on angle, point so far:", point);
+                point.z -= turnTable.position.z; //7cm radius of turntbale plus 5mm offset from back plane
+                var alphaDelta = turnTable.rotation;
+                var alphaOld = Math.atan(point.z/point.x);
+                var alphaNew = alphaOld+alphaDelta.y*(Math.PI/180.0);
+                var hypotenuse = Math.sqrt(point.x*point.x + point.z*point.z);
+
+                if(point.z < 0 && point.x < 0){
+                    alphaNew += Math.PI;
+                }else if(point.z > 0 && point.x < 0){
+                    alphaNew -= Math.PI;
+                }
+                point.z = Math.sin(alphaNew)*hypotenuse;
+                point.x = Math.cos(alphaNew)*hypotenuse;
+
+                log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");
+                if(point.y>lowerLimit+0.5 && hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
+                    log.debug("adding new point to thingamagic",point);
+                    model.push( point );
+                    //model->addPointToPointCloud(point);
+                }
+                return;
+                break;
+            }
+        }
+        log.debug(" ");
+    }
+
+}
+
 
 
 Vision.prototype.drawHelperLines = function( im )
@@ -320,7 +450,7 @@ Vision.prototype.convertPointToCvPoint = function( point)
   var cvPointY = (-point.y*this.camHeight/fsImgHeight) + origin.y;
   var cvPoint = new cv.Point(cvPointX, cvPointY);
 
-  console.log("done converting from point",point," to ", cvPointX,cvPointY);
+  log.debug("done converting from point",point," to ", cvPointX,cvPointY);
   return cvPoint;
 }
 
@@ -337,7 +467,7 @@ Vision.prototype.convertCvPointToPoint = function( cvPoint)
   point.y = -(cvPoint.y - origin.y)*fsImgHeight/this.camHeight;
   point.z = 0.0;
 
-  console.log("done converting from cv point","{x:"+cvPoint.x+" y:"+cvPoint.y+"}"," to ", point);
+  log.debug("done converting from cv point","{x:"+cvPoint.x+" y:"+cvPoint.y+"}"," to ", point);
   return point;
 }
 
@@ -345,12 +475,12 @@ Vision.prototype.convertCvPointToPoint = function( cvPoint)
 //compute line from points
 Vision.prototype.computeLineFromPoints = function( p1, p2 )
 {
-  console.log("line from", p1,"to",p2);
+  log.debug("line from", p1,"to",p2);
   var l= {a:0,b:0}; //{x: 14, y: 6.4, z: 28.8 } { x: 14, y: 0, z: 0 }
   l.a = (p2.z-p1.z)/(p2.x-p1.x);
   l.b = p1.z-l.a*p1.x;
 
-  console.log("result line", l);
+  log.debug("result line", l);
   return l;
 }
 
@@ -364,122 +494,6 @@ Vision.prototype.computeIntersectionOfLines = function( l1, l2 )
   return i;
 }
 
-
-
-Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model)
-{
-  console.log("/////////////////");
-  console.log("putPointsFromFrameToCloud");
-    
-  //extract laser line from the two images
-  var laserLine = this.detectLines2(laserOff,laserOn);//this.extractLaserLine(laserOff,laserOn);
-
-  //calculate position of laser in cv frame
-  //position of the laser line on the back plane in world coordinates
-  var cvLaserLinePosition = this.convertPointToCvPoint(laser.pointPosition);
-  var laserPos = cvLaserLinePosition.x; //const over all y
-
-  //console.log("laserPosition",laser.pointPosition, "cvLaserLinePosition",laserPos);
-
-    //laserLine is result of subLaser2, is in RGB
-    var cols = laserLine.width();//laserLine.height();
-    var rows = laserLine.height();//laserLine.width();
-
-    //create new image in black&white
-    var bwImage = laserLine.copy();
-    //bwImage.convertGrayscale(); 
-    //bwImage.save('foobarbazBW.png');
-    
-    //TODO: move these to config
-    var upperFrameLimit = 0;
-    var lowerFrameLimit = 30;
-    var laserOffset = 90;
-
-    //console.log("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
-    //now iterating from top to bottom over bwLaserLine frame
-    //no bear outside of these limits :) cutting of top and bottom of frame
-    for(var y = upperFrameLimit; y < rows-lowerFrameLimit; y+=dpiVertical )
-    {
-        //ANALYZING_LASER_OFFSET is the offset where we stop looking for a reflected laser, cos we might catch the non reflected
-        //now iteratinf from right to left over bwLaserLine frame
-
-        //console.log("X Going from ",cols-1 ,"to", laserPos+laserOffset," ////laserPos",laserPos);//+ANALYZING_LASER_OFFSET;
-
-        for(var x = cols-1; x >= laserPos+laserOffset; x -= 1){
-            var pixValue = bwImage.get(y,x);
-            //if(pixValue>0)
-            //{
-            //console.log("Pixel value at ",y,x," is ",pixValue);
-            //}
-            //pixValue==255
-            if(pixValue>0){ //check if white=laser-reflection
-                console.log("found point at x=", x);
-                //if (row[x] > 200){
-                //we have a white point in the grayscale image, so one edge laser line found
-                //no we should continue to look for the other edge and then take the middle of those two points
-                //to take the width of the laser line into account
-
-                //position of the reflected laser line on the image coord
-                var reflectedLaserPos = new cv.Point(x,y);
-
-                //convert to world coordinates withouth depth
-                var point = this.convertCvPointToPoint(reflectedLaserPos);
-                //console.log("convertedPoint", point);
-
-                var l1 = this.computeLineFromPoints(camera.position, point);
-                var l2 = this.computeLineFromPoints(laser.position, laser.pointPosition);
-
-                var intersection = this.computeIntersectionOfLines(l1, l2);
-                point.x = intersection.x;
-                point.z = intersection.z;
-
-                //console.log("intersection at , point so far:", intersection,point);
-
-                //At this point we know the depth=z. Now we need to consider the scaling depending on the depth.
-                //First we move our point to a camera centered cartesion system.
-                point.y -= camera.position.y;
-                point.y *= (camera.position.z - point.z)/(camera.position.z);
-                //Redo the translation to the box centered cartesion system.
-                point.y += camera.position.y;
-
-                //console.log("geting color, point so far:", point);
-                //get color from picture without laser
-                var r = laserOff.get(y,x)[2];
-                var g = laserOff.get(y,x)[1];
-                var b = laserOff.get(y,x)[0];
-                //point.color = FSMakeColor(r, g, b);
-
-                //turning new point according to current angle of turntable
-                //translate coordinate system to the middle of the turntable
-                //console.log("computing, based on angle, point so far:", point);
-                point.z -= turnTable.position.z; //7cm radius of turntbale plus 5mm offset from back plane
-                var alphaDelta = turnTable.rotation;
-                var alphaOld = Math.atan(point.z/point.x);
-                var alphaNew = alphaOld+alphaDelta.y*(Math.PI/180.0);
-                var hypotenuse = Math.sqrt(point.x*point.x + point.z*point.z);
-
-                if(point.z < 0 && point.x < 0){
-                    alphaNew += Math.PI;
-                }else if(point.z > 0 && point.x < 0){
-                    alphaNew -= Math.PI;
-                }
-                point.z = Math.sin(alphaNew)*hypotenuse;
-                point.x = Math.cos(alphaNew)*hypotenuse;
-
-                //console.log("point.y",point.y,"lowerLimit",lowerLimit,'hypotenuse',hypotenuse);
-
-                if(point.y>lowerLimit+0.5 && hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
-                    console.log("adding new point to thingamagic",point);
-                    model.push( point );
-                    //model->addPointToPointCloud(point);
-                }
-                break;
-                
-            }
-        }
-    }
-
-}
 
 module.exports = Vision;
 

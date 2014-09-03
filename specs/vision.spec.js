@@ -43,7 +43,7 @@ describe("vision class specs", function() {
   });
   
   */
-  it("can extract laser lines using two input images/matrices", function(done) {
+  /*it("can extract laser lines using two input images/matrices", function(done) {
     var tgtWidth = 640//160;
     var tgtHeight = 480//120;
     co(function* (){
@@ -68,21 +68,59 @@ describe("vision class specs", function() {
     })();
   });
   
-  /*
+  
   it("can detect laser lines using two input images/matrices", function(done) {
-  
-    co(function* (){
+     co(function* (){
 
-      var imLaser = yield readCamera('testData/calib_camLaser.png');
-      var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
+        try
+        {
+          var imLaser = yield readCamera('testData/calib_camLaser.png');
+          var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
 
-      var bestMatch = vision.detectLines(imLaser, imNoLaser, 10, true);
+          var bestMatch = vision.detectLaserLine(imLaser, imNoLaser, 10, true);
+          expect(bestMatch).toEqual({ x: -1.84953125, y: 4.6342187500000005, z: 0 });
+        }
+        catch(error)
+        {
+          console.log("error",error);
+        }
+
       done();
-      })();
+          })();
   });*/
+
+
+  it("can extract 3d points from images", function(done) {
+    co(function* (){
+      try
+      {
+       var imLaser = yield readCamera('testData/calib_camLaser.png');
+       var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
+
+       var Laser = require("../src/laser");
+       var Camera = require("../src/camera");
+       var TurnTable = require("../src/turntable");
+
+
+       var laser = new Laser();
+       var camera = new Camera();
+       var turnTable = new TurnTable();
+       //laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model
+       laser.pointPosition = { x: -1.84953125, y: 4.6342187500000005, z: 0 };
+
+       var result =[];
+       vision.putPointsFromFrameToCloud( imNoLaser, imLaser, 5,0,laser,camera,turnTable,result );
+       console.log("result", result);
+      }
+      catch(error)
+      {
+        console.log("error",error);
+      }
+     
+      done();
+    })();
+  });
   
- 
- 
  
   
 });
