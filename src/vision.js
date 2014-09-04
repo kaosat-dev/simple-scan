@@ -1,15 +1,7 @@
 var cv = require('opencv');
 var Minilog=require("minilog");
 
-//Minilog.pipe(Minilog.suggest).pipe(Minilog.backends.console.formatColor).pipe(Minilog.backends.console)
-Minilog.pipe(Minilog.suggest) // filter
-       .pipe(Minilog.defaultFormatter) // formatter
-       .pipe(Minilog.defaultBackend); // backend - e.g. the console
-Minilog
-  .suggest
-    .clear()
-    .deny('vision', 'warn');
-Minilog.enable();
+Minilog.pipe(Minilog.suggest).pipe(Minilog.defaultFormatter).pipe(Minilog.defaultBackend);
 var log = Minilog('vision');
 
 var config = require("./config");
@@ -309,6 +301,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
         //now iteratinf from right to left over bwLaserLine frame
 
         var pixRow = bwImage.pixelRow(y);  
+        var colRow = laserOff.pixelRow(y); 
         var minX = (laserPos+laserOffset);
         //console.log("X Going from ",cols-1 ,"to", minX," ////laserPos",laserPos);//+ANALYZING_LASER_OFFSET;
         //console.log("pixRow",pixRow);
@@ -327,10 +320,6 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
             }
             if(pixelVal>0){ //check if white=laser-reflection
                 log.debug("found point at x= "+ x+", y="+y);
-                //we have a white point in the grayscale image, so one edge laser line found
-                //no we should continue to look for the other edge and then take the middle of those two points
-                //to take the width of the laser line into account
-
                 //position of the reflected laser line on the image coord
                 var reflectedLaserPos = new cv.Point(x,y);
 
@@ -345,7 +334,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 point.x = intersection.x;
                 point.z = intersection.z;
 
-                //console.log("intersection at , point so far:", intersection,point);
+                log.debug("intersection done , point so far:", point);
 
                 //At this point we know the depth=z. Now we need to consider the scaling depending on the depth.
                 //First we move our point to a camera centered cartesian system.
@@ -354,18 +343,24 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 //Redo the translation to the box centered cartesion system.
                 point.y += camera.position.y;
 
-                //console.log("geting color, point so far:", point);
+                log.debug("adjusting for camera done , point so far:", point);
+
                 //get color from picture without laser
-                /*var r = laserOff.get(y,x)[2];
-                var g = laserOff.get(y,x)[1];
-                var b = laserOff.get(y,x)[0];*/
-                //point.color = FSMakeColor(r, g, b);
+                var colorValRaw = [colRow[idx],colRow[idx+1],colRow[idx+2]];
+                var r = colorValRaw[2];
+                var g = colorValRaw[1];
+                var b = colorValRaw[0];
+                log.debug("color:",r,g,b);
 
                 //turning new point according to current angle of turntable
                 //translate coordinate system to the middle of the turntable
                 //console.log("computing, based on angle, point so far:", point);
                 point.z -= turnTable.position.z; //7cm radius of turntbale plus 5mm offset from back plane
+                point.x -=2.5;
+                point.z -=0;
+          
                 var alphaDelta = turnTable.rotation;
+                
                 var alphaOld = Math.atan(point.z/point.x);
                 var alphaNew = alphaOld+alphaDelta.y*(Math.PI/180.0);
                 var hypotenuse = Math.sqrt(point.x*point.x + point.z*point.z);
@@ -377,11 +372,15 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 }
                 point.z = Math.sin(alphaNew)*hypotenuse;
                 point.x = Math.cos(alphaNew)*hypotenuse;
+                
 
-                log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");
-                if(point.y>lowerLimit+0.5 && hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
+
+                log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");// && hypotenuse < 7
+                if(point.y>lowerLimit+0.5){ //eliminate points from the grounds, that are not part of the model
                     //log.info("adding new point to thingamagic",point);
-                    model.push( point );
+                    log.warn(turnTable.rotation);
+                    model.positions.push( point.x, point.y, point.z);
+                    model.colors.push( r,g,b );
                     foundPoints+=1;
                     //model->addPointToPointCloud(point);
                 }

@@ -11,15 +11,9 @@ var TurnTable = require("./turntable");
 var Vision    = require("./vision");
 
 
-Minilog.pipe(Minilog.suggest) // filter
-       .pipe(Minilog.defaultFormatter) // formatter
-       .pipe(Minilog.defaultBackend); // backend - e.g. the console
-Minilog
-  .suggest
-    .clear()
-    .deny('vision', 'info');
-Minilog.enable();
-var log = Minilog('vision');
+Minilog.suggest.clear().deny('vision', 'error');
+//Minilog.suggest.clear().deny('turntable', 'debug');
+var log = Minilog('scanner');
 
 var config = require("./config");
 
@@ -94,12 +88,13 @@ Scanner.prototype.sendCommand=function(command)
 {
   var deferred = Q.defer();
   var callback = function(response) {
-    //console.log("waiting for data", response, response.toJSON());
+    //console.log("waiting for data", this, response, response.toJSON());
         if (response.toJSON()[0] == 213) {
-          //console.log("oh yeah");
+            this.removeListener("data",callback);
             deferred.resolve("ok");
         } else if (response.toJSON()[0] == 211) {
               deferred.resolve("ok");
+              this.removeListener("data",callback);
             }
   };
   this.serial.on("data", callback);
@@ -144,15 +139,19 @@ Scanner.prototype.detectLaser = function *(debug)
 
 //do a scan ! 
 /*stepDegrees: number of degrees between each scan slice
+yDpi: vertical resolution
+stream: flag to use streaming or not (actually a socket instance)
 debug: flag 
 dummy: do not actually do a scan, use pre-existing images instead
 */
-Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
+Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 {
    log.info("started scanning in ",stepDegrees,"increments, totalslices:",360/stepDegrees);
    var writeFile = Q.denodeify(fs.writeFile);
-   var yDpi = 2;
-   var model = [];//FIXME:stand in for now
+   var yDpi = yDpi;
+   var fullModel = {positions:[],colors:[]};
+   var totalPoints =0;
+    
 
    //detect laser line
    var laserDetected = yield this.detectLaser();
@@ -172,7 +171,7 @@ Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
    //and turntable too
    this.turnTable.rotation.y = 0;
    yield this.turnTable.toggle(true);
-
+  
     //iterate over a complete turn of the turntable
     for(i=0; i<360 && this.scanning==true; i+=stepDegrees){
 
@@ -189,21 +188,26 @@ Scanner.prototype.scan = function *(stepDegrees ,debug, dummy)
         //imLaser.resize(1280,960);
         if(debug) imLaser.save(this.outputFolder+'camLaser'+i/stepDegrees+'.png');
 
+        if(stream) model={positions:[],colors:[]};
         //here the magic happens
         this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0, this.laser, this.camera, this.turnTable, model);
 
-        //TODO: stream data to browser
+        if(stream){
+          stream.emit('chunkStreamed',{data:model});
+          totalPoints+= model.positions.length;
+          fullModel.positions = fullModel.positions.concat( model.positions);
+          fullModel.colors    = fullModel.colors.concat( model.colors);
+        }
         //geometries->setPointCloudTo(model->pointCloud);
-        console.log("foo",i);
 
-        //turn turntable a step
+        //turn turntable x degrees
         yield this.turnTable.rotateByDegrees(stepDegrees);
     }
     this.scanning = false; //stop scanning
     yield this.turnTable.toggle(false);
 
-    log.info("done scanning: result model: "+model.length+" points");
-    yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(model));
+    log.info("done scanning: result model: "+totalPoints+" points");
+    yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
     return model;
 }
 

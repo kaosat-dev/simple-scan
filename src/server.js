@@ -1,12 +1,14 @@
 var express    = require('express'); 		// call express
 var io = require('socket.io').listen(8082);
+//var ss = require('socket.io-stream');
 var app        = express(); 				// define our app using express
 var port = process.env.PORT || 8080; 		// set our port
 app.use(express.static("./"));
 
 
-var Scanner = require("./scanner");
 
+
+var Scanner = require("./scanner");
 var scanner = new Scanner();
 
 //////////////////////////
@@ -104,11 +106,6 @@ io.sockets.on('connection', function (socket) {
   socket.on('rotate',function (data) {
     console.log("SERVER rotating platform ",data);
     co(function* (){
-        var dir = data.direction;
-        if(dir === "CW")
-        {
-           steps = -steps;
-        }
         yield scanner.turnTable.rotateByDegrees(data.degrees);
     })();
   });
@@ -132,11 +129,20 @@ io.sockets.on('connection', function (socket) {
     })();
    });
 
+   /*socket.on('scan',function(data){
+    console.log("starting scan",data);
+    co(function* (){
+        var scanData = yield scanner.scan(parseInt(data.stepDegrees), parseInt(data.vDpi),data.debug);
+        socket.emit('scanFinished',{data:scanData});
+    })();
+   });*/
+
+
    socket.on('scan',function(data){
     console.log("starting scan",data);
     co(function* (){
-        var scanData = yield scanner.scan(parseInt(data.stepDegrees),data.debug);
-        socket.emit('scanFinished',{data:scanData});
+        yield scanner.scan(parseInt(data.stepDegrees), parseInt(data.vDpi),socket,data.debug);
+        socket.emit('scanFinished',{data:[]});
     })();
    });
   ///////////////////////////////////
