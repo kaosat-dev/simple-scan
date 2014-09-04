@@ -193,9 +193,11 @@ void loop()
               break;
             case TURN_LIGHT_ON:
               byteType = LIGHT_INTENSITY;
+              Serial.write(FABSCAN_ACK);
               break;
             case TURN_LIGHT_OFF:
               digitalWrite(LIGHT_PIN, LOW);
+              Serial.write(FABSCAN_ACK);
               break;
             case FABSCAN_PING:
               delay(1);
@@ -217,7 +219,6 @@ void loop()
           Serial.write(FABSCAN_ACK);
           break;
         case STEPPER_ID:
-          Serial.write(incomingByte);
           currStepper = incomingByte;
           byteType = ACTION_BYTE;
           break;
