@@ -42,10 +42,11 @@
             <core-toolbar >
               <paper-icon-button icon="menu"></paper-icon-button>
               <span flex>Simple-scan</span>
+              <span flex><template if="{{scanStarted}}">Scan in progress...</template></span>
 
               <core-selector selected="2" id="menuItems">
                 <core-tooltip label="Start scan">
-                  <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" ></paper-icon-button>
+                  <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" disabled?="{{scanStarted}}"></paper-icon-button>
                 </core-tooltip>
                 <core-tooltip label="Calibrate">
                   <paper-icon-button icon="image:auto-fix" on-tap="{{showCalibration}}" ></paper-icon-button>
@@ -87,8 +88,8 @@
                     <axis-helper> </axis-helper>
                 </three-js-scene>
                 <three-js-viewport name="perspective" id="perspectiveView">
-                  <three-js-combinedCamera pos="[200,200,100]" orientation="diagonal" up=[0,0,1]></three-js-combinedCamera>
-                  <three-js-orbitControls cameraUp=[0,0,1] autoRotate="{{autoRotate}}" autoRotateSpeed="10"> </three-js-orbitControls>
+                  <three-js-combinedCamera pos="[200,200,100]" orientation="diagonal" up=[0,1,0]></three-js-combinedCamera>
+                  <three-js-orbitControls cameraUp=[0,1,0] autoRotate="{{autoRotate}}" autoRotateSpeed="10"> </three-js-orbitControls>
                 </three-js-viewport>
             </three-js>
 
@@ -108,17 +109,15 @@
                 </core-dropdown>
 
                 Quality
-                <core-dropdown selected="1">
-                    <core-item value="1" label="1"></core-item>
-                    <core-item value="10" label="10"></core-item>
-                    <core-item value="45" label="45"></core-item>
-                </core-dropdown>
-
-
-                <paper-input  id="angleToQuality" floatingLabel label="angleQuality (lower == better" type="number" error="Input is not a number!"
+                <paper-input  id="angleToQuality" floatingLabel label="angleQuality (lower == better)" type="number" error="Input is not a number!"
                   value={{scanQual}}
                     ></paper-input>  
+                <paper-input  id="vertDpi" floatingLabel label="vertQuality (lower == better)" type="number" error="Input is not a number!"
+                  value={{scanQualVert}}
+                    ></paper-input>               
+
                 <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{debugToggled}}"></paper-checkbox>
+                <paper-checkbox id="colorsToggler" class="blue" alt="colorsToggler" checked="{{colorsToggled}}"></paper-checkbox>
                 
                 <input type="button" id="connect" value="connect" on-tap="{{connect}}"> </input>
                 
@@ -156,8 +155,8 @@
                     </div>
                   </div>
                   <div center horizontal layout>
-                    <paper-icon-button fill id="rotateCW" icon="rotate-left" on-tap="{{rotateCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
-                    <paper-icon-button fill id="rotateCCW" icon="rotate-right" on-tap="{{rotateCCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
+                    <paper-icon-button fill id="rotateCCW" icon="rotate-left" on-tap="{{rotateCCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
+                    <paper-icon-button fill id="rotateCW" icon="rotate-right" on-tap="{{rotateCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
                   </div>
               </section>
 
@@ -210,7 +209,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
 
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged","calibImage"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged","calibImage","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -240,7 +239,11 @@
                 _stepsPerRevo:400,//how many steps per full rotation
 
                 scanQual:45,
+                scanQualVert:2,
                 scanData:null,
+                pointCloud:null,
+                //
+                colorsToggled:false,
                 //
                 userToastMessage:"Disconnected from socket.io server!",
 
@@ -251,6 +254,7 @@
                   this.$.socketIo.addEventListener('s-io-status',       this.onSIOStatus.bind(this) );
                   this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
                   this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-chunkStreamed',this.onSIOScanChunkStreamed.bind(this) );
                   this.$.socketIo.addEventListener('s-io-calibImage'   ,this.onSIOCalibImage.bind(this) );
                   
                 },
@@ -261,13 +265,59 @@
                       geometry = new THREE.CircleGeometry( radius, segments );
                   // Remove center vertex
                   geometry.vertices.shift();
-                  this.$.threeJs.addToScene( new THREE.Line( geometry, material ) );
+                  var turnTable = new THREE.Line( geometry, material );
+                  turnTable.rotation.set(Math.PI/2,0,0)
+                  //turnTable.rotation.x += Math.PI;
+                  this.$.threeJs.addToScene( turnTable );
 
                   /*var geometry = new THREE.Geometry();
                   var pMaterial = new THREE.ParticleBasicMaterial({ size: 5,color: 0xFF0000});//new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
                   var particles = new THREE.ParticleSystem( geometry, pMaterial );// new THREE.PointCloud( geometry, pMaterial );*/
       
                   this.triDViewer = this.$.threeJs;
+
+                  /*var geometry = new THREE.BufferGeometry();
+                  var positions = new Float32Array( particles * 3 );
+				          var colors = new Float32Array( particles * 3 );
+				          var color = new THREE.Color();
+
+				          var n = 1000, n2 = n / 2; // particles spread in the cube
+
+				          for ( var i = 0; i < positions.length; i += 3 ) {
+
+					          // positions
+					          var x = Math.random() * n - n2;
+					          var y = Math.random() * n - n2;
+					          var z = Math.random() * n - n2;
+
+					          positions[ i ]     = x;
+					          positions[ i + 1 ] = y;
+					          positions[ i + 2 ] = z;
+
+					          // colors
+					          var vx = ( x / n ) + 0.5;
+					          var vy = ( y / n ) + 0.5;
+					          var vz = ( z / n ) + 0.5;
+
+					          color.setRGB( vx, vy, vz );
+
+					          colors[ i ]     = color.r;
+					          colors[ i + 1 ] = color.g;
+					          colors[ i + 2 ] = color.b;
+
+				          }
+
+				          geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+				          geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+
+				          geometry.computeBoundingSphere();
+
+                  var material = new THREE.ParticleBasicMaterial({ size: 0.2,color: 0xFF0000,vertexColors: THREE.VertexColors});
+                  var particles = new THREE.ParticleSystem( geometry, material );
+
+                  this.triDViewer.addToScene( particles );*/
+
+
                 },
                 inMessageChanged:function(){
                     console.log("inMessage", this.inMessage);
@@ -301,6 +351,9 @@
                     var converted = this.angleToRotate*this._stepsPerRevo/360; 
                     if(converted != this.stepsToRotate) this.stepsToRotate = converted;
                 },
+                colorsToggledChanged:function(){
+                  //this.pointCloud.material = this.
+                },
                 //event handlers
                 onSIOConnect:function(){
                   this.connected = true;
@@ -323,33 +376,42 @@
                 },
                 onSIOScanFinished:function(e,detail,sender){
                   console.log("scan finished",e.detail.msg.data);
+                  this.scanStarted = false;
+                },
+                onSIOScanChunkStreamed:function(e,detail,sender){
+                  console.log("scan chunk rcv");
+                  //TODO: user buffers, merge them, render
+                  var scanData = e.detail.msg.data;
+                  if(this.pointCloud) this.triDViewer.removeFromScene(this.pointCloud);
+                
+                  this.scanData.positions = this.scanData.positions.concat( scanData.positions );
+                  this.scanData.colors    = this.scanData.colors.concat( scanData.colors );
 
-                  var scanData = this.scanData = e.detail.msg.data;
-                  var geometry = new THREE.Geometry();
+                  var pos = this.scanData.positions;
+                  var col = this.scanData.colors;
 
-                  /*var pMaterial = new THREE.ParticleBasicMaterial({
-                        color: 0xFF0000,
-                        size: 20
-                      });*/
-                  for(var i=0;i<scanData.length;i++)
-                  {
-                    var current = scanData[i];
-                    geometry.vertices.push( new THREE.Vector3(current.x,current.y,current.z) );
-                  }
+                  //generate
+                  var points = this.scanData.positions.length/3;
+                  var positions = new Float32Array( points* 3  ); 
+	                var colors    = new Float32Array( points* 3  );
+
+	                positions.set( pos );
+	                colors.set( col );
+
+                  var geometry = new THREE.BufferGeometry();
+                  geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+				          geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+
+                  //geometry.computeFaceNormals();
+                  geometry.computeVertexNormals();
                   geometry.applyMatrix(new THREE.Matrix4().makeScale( 10, 10, 10 ) );
 
-                  /*var axis = new THREE.Vector3(1,0,0);
-                  var radians = Math.PI/2;
-                  var rotWorldMatrix = new THREE.Matrix4();
-                  rotWorldMatrix.makeRotationAxis( axis.normalize(), radians);
-                  rotWorldMatrix.multiply( geometry.matrix);
-                  geometry.matrix = rotWorldMatrix
-                  geometry.rotation.setFromRotationMatrix( geometry.matrix )*/
 
-                  var pMaterial = new THREE.ParticleBasicMaterial({ size: 0.2,color: 0xFF0000});//var pMaterial = new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
-                  var particles = new THREE.ParticleSystem( geometry, pMaterial );//var particles = new THREE.PointCloud( geometry, pMaterial );
-      
+                  var material = new THREE.ParticleSystemMaterial({ size: 0.2,vertexColors: true,color:0xFF0000});//});
+                  var particles = new THREE.ParticleSystem( geometry, material );
+                  
                   this.triDViewer.addToScene( particles );
+                  this.pointCloud = particles;
                 },
                 onSIOCalibImage:function(e,detail,sender){
                   var data = e.detail.msg.data;
@@ -436,17 +498,18 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 },
                 rotateCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CW",degrees:this.angleToRotate}});
+                    this.sendMessage({event:"rotate", data: {direction:"CW",degrees:parseInt(this.angleToRotate)}});
                 },
                 rotateCCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-this.angleToRotate}});
+                    this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-parseInt(this.angleToRotate)}});
                 },
                 startScan:function()
                 {
                     console.log("starting Scan");
-                    this.sendMessage({event:"scan", data:{debug:this.debugToggled,stepDegrees:this.scanQual}});
+                    this.sendMessage({event:"scan", data:{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}});
                     this.scanStarted=true;
+                    this.scanData = {positions:[],colors:[]};
                 },
                 detectLaser:function(){
                     console.log("detectLaser");
