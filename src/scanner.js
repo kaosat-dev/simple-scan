@@ -39,6 +39,8 @@ var Scanner =function(){
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
 
+  this.latestScan = null; //store the last scan in memory ?
+
 }
 
 Scanner.prototype={};
@@ -81,6 +83,12 @@ Scanner.prototype.connect=function*()
   this.serial.on("close",this.onDisconnected);
   this.serial.on("error",this.onError);
   yield sleep(500);
+
+
+  //
+  var readFile  = Q.denodeify(fs.readFile);
+  var lastScan = JSON.parse( yield readFile(this.outputFolder+"pointCloud.dat") );
+  this.latestScan = lastScan ;
 }
 
 //send command to arduino, wait for ack
@@ -103,10 +111,10 @@ Scanner.prototype.sendCommand=function(command)
 }
 
 //detect laser line
-Scanner.prototype.detectLaser = function *(debug)
+Scanner.prototype.detectLaser = function *(debug, threshold)
 {
     log.info("attempting laser detection");
-    var threshold = 40;
+    var threshold = threshold || 40;
     
     //make sure laser is off
     yield this.laser.turnOff();
@@ -114,10 +122,8 @@ Scanner.prototype.detectLaser = function *(debug)
     log.info("got camera image with no laser");
     if(debug) imNoLaser.save(this.outputFolder+'calib_camNoLaser.png');
 
-    
     //make sure laser is on
     yield this.laser.turnOn();
-    yield sleep(300);
     var imLaser = yield this.camera.read();
     log.info("got camera image with laser");
     if(debug) imLaser.save(this.outputFolder+'calib_camLaser.png');
@@ -131,7 +137,7 @@ Scanner.prototype.detectLaser = function *(debug)
 
     log.info("frames grabbed, now detecting...");
     var p = this.vision.detectLaserLine( imNoLaser, imLaser, threshold ,debug);
-    console.log("got result", p);
+    //console.log("got result", p);
     if(!(p)){return false;}
     this.laser.pointPosition = p;
     return true;
@@ -177,16 +183,17 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 
         //take picture without laser
         yield this.laser.turnOff();
+        //yield sleep(150);
         var imNoLaser = yield this.camera.read();
-        if(debug) imNoLaser.save(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png');
+        if(debug) imNoLaser.saveAsync(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
         //imNoLaser.resize(1280,960);
 
-        yield sleep(150);
+        //yield sleep(300);
         //take picture with laser
         yield this.laser.turnOn();
         var imLaser = yield this.camera.read();
         //imLaser.resize(1280,960);
-        if(debug) imLaser.save(this.outputFolder+'camLaser'+i/stepDegrees+'.png');
+        if(debug) imLaser.saveAsync(this.outputFolder+'camLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
 
         if(stream) model={positions:[],colors:[]};
         //here the magic happens
@@ -205,7 +212,9 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
     }
     this.scanning = false; //stop scanning
     yield this.turnTable.toggle(false);
+    yield this.laser.turnOff();
 
+    this.latestScan=fullModel;
     log.info("done scanning: result model: "+totalPoints+" points");
     yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
     return model;
@@ -217,8 +226,6 @@ Scanner.prototype.calibrate = function *(debug)
     var img = yield this.camera.read();
     img.resize(320,240);
     this.vision.drawHelperLines( img );
-
-
     var buff = img.toBuffer()
     return buff;
 }

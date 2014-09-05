@@ -7,47 +7,16 @@ app.use(express.static("./"));
 
 
 
-
+var sleep      = require('./sleep');
 var Scanner = require("./scanner");
 var scanner = new Scanner();
 
 //////////////////////////
 
 
-//serial stuff
-/*var serialPort = require("serialport");
-var SerialPort = serialPort.SerialPort
-
-var serialPorts = []
-//list ports
-serialPort.list(function (err, ports) {
-  serialPorts = ports;
-  ports.forEach(function(port) {
-    console.log(port.comName);
-    console.log(port.pnpId);
-    console.log(port.manufacturer);
-  });
-});
-
-var serial = new SerialPort("/dev/ttyACM0", {
-  baudrate: 9600,
-  parser: serialPort.parsers.raw
-},false);*/
-
-
-//status
-var serialConnected = false;
-var laserOn  = false;
-var stepperOn = false;
-//////////////////////////
 
 var clientsMap = {};
 
-//////////////////////////
-var turnTableSteps = 10;
-var cameraDistance = 200;
-var cameraLaserAngle = 75;
-//var x = d*tan(theta);
 
 
 
@@ -62,7 +31,12 @@ io.sockets.on('connection', function (socket) {
   console.log("connected ",socket.id);
   clientsMap[socket.id] = {};
   socket.emit('userChanged',clientsMap); //send users list on connection
-  socket.emit('status',{serialConnected: scanner.connected,laserOn:scanner.laser.isOn,stepperOn:scanner.turnTable.isOn,serialPorts:scanner.serialPorts});
+  socket.emit('status',{
+    serialConnected: scanner.connected,
+    laserOn:scanner.laser.isOn,
+    stepperOn:scanner.turnTable.isOn,
+    latestScan:scanner.latestScan,
+    serialPorts:scanner.serialPorts});
 
   socket.on('message', function (data) {
     console.log("SERVER recieved message",data);
@@ -141,7 +115,7 @@ io.sockets.on('connection', function (socket) {
    socket.on('scan',function(data){
     console.log("starting scan",data);
     co(function* (){
-        yield scanner.scan(parseInt(data.stepDegrees), parseInt(data.vDpi),socket,data.debug);
+        yield scanner.scan(parseFloat(data.stepDegrees), parseInt(data.vDpi),socket,data.debug);
         socket.emit('scanFinished',{data:[]});
     })();
    });
@@ -174,7 +148,26 @@ io.sockets.on('connection', function (socket) {
   });
 });
 
+
+
+/*var attempts = 3000;
+//yield scanner.turnTable.toggle(true);
+scanner.camera.connect();
+for(var i=0;i<attempts;i++)
+{
+    //yield scanner.turnTable.rotateByDegrees(10);
+    yield scanner.detectLaser();
+    //scanner.camera.readTest();
+    //yield sleep(10);
+}*/
+
+
 })();
+
+
+
+
+
 
 app.listen(port);
 console.log('Magic happens on port ' + port);

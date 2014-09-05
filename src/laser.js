@@ -50,14 +50,14 @@ Laser.prototype.toggle=function*(flag)
 Laser.prototype.turnOff=function*()
 {
    yield this.sendCommand([200]);
-   yield sleep(200);
+   yield sleep(350);
    this.isOn = false;
 }
 
 Laser.prototype.turnOn=function*()
 {
    yield this.sendCommand([201]);
-   yield sleep(200);
+   yield sleep(350);
    this.isOn = true;
 }
 

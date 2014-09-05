@@ -43,6 +43,7 @@
               <paper-icon-button icon="menu"></paper-icon-button>
               <span flex>Simple-scan</span>
               <span flex><template if="{{scanStarted}}">Scan in progress...</template></span>
+              <span flex><template if="{{scanTime!=0}}">Scan took {{scanTime/60}} mins </template></span>
 
               <core-selector selected="2" id="menuItems">
                 <core-tooltip label="Start scan">
@@ -199,8 +200,6 @@
 
             </core-pages>
             
-      
-            
             <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
@@ -242,6 +241,7 @@
                 scanQualVert:2,
                 scanData:null,
                 pointCloud:null,
+                scanTime:0,
                 //
                 colorsToggled:false,
                 //
@@ -259,22 +259,18 @@
                   
                 },
                 domReady:function(){
-                  var radius   = 100,
+                  this.triDViewer = this.$.threeJs;
+
+                  //draw Turntable
+                  var radius   = 75,
                       segments = 64,
                       material = new THREE.LineBasicMaterial( { color: 0x000000 } ),
                       geometry = new THREE.CircleGeometry( radius, segments );
-                  // Remove center vertex
                   geometry.vertices.shift();
                   var turnTable = new THREE.Line( geometry, material );
                   turnTable.rotation.set(Math.PI/2,0,0)
-                  //turnTable.rotation.x += Math.PI;
-                  this.$.threeJs.addToScene( turnTable );
-
-                  /*var geometry = new THREE.Geometry();
-                  var pMaterial = new THREE.ParticleBasicMaterial({ size: 5,color: 0xFF0000});//new THREE.PointCloudMaterial( { size: 5,color: 0xFF0000, } );
-                  var particles = new THREE.ParticleSystem( geometry, pMaterial );// new THREE.PointCloud( geometry, pMaterial );*/
+                  this.triDViewer.addToScene( turnTable );
       
-                  this.triDViewer = this.$.threeJs;
 
                   /*var geometry = new THREE.BufferGeometry();
                   var positions = new Float32Array( particles * 3 );
@@ -369,6 +365,10 @@
                   this.laserToggled = status.laserOn;
                   this.stepperToggled = status.stepperOn;
                   this.serialPorts = status.serialPorts;
+
+                  if(status.latestScan){
+                    this.drawPointCloud( status.latestScan );
+                  }
                 },
                 onSIOlaserDetected:function(e, detail, sender){
                   console.log("laser detected",e.detail.msg);
@@ -377,6 +377,11 @@
                 onSIOScanFinished:function(e,detail,sender){
                   console.log("scan finished",e.detail.msg.data);
                   this.scanStarted = false;
+
+                  var scanEnd = new Date().getTime();
+                  var scanTime = (Math.round(scanEnd-this._scanStart) / 1000);
+                  console.log("scan took", scanTime,"seconds, ie", (scanTime/60), "minutes");
+                  this.scanTime = scanTime;
                 },
                 onSIOScanChunkStreamed:function(e,detail,sender){
                   console.log("scan chunk rcv");
@@ -407,8 +412,8 @@
                   geometry.applyMatrix(new THREE.Matrix4().makeScale( 10, 10, 10 ) );
 
 
-                  var material = new THREE.ParticleSystemMaterial({ size: 0.2,vertexColors: true,color:0xFF0000});//});
-                  var particles = new THREE.ParticleSystem( geometry, material );
+                  var material = new THREE.PointCloudMaterial({ size: 0.2,vertexColors: THREE.VertexColors});
+                  var particles = new THREE.PointCloud( geometry, material );
                   
                   this.triDViewer.addToScene( particles );
                   this.pointCloud = particles;
@@ -490,6 +495,35 @@ ctx.drawImage(video, 0, 0, 640, 480);
                     }*/
 
                 },
+
+                drawPointCloud:function(data){
+                  if(this.pointCloud) this.triDViewer.removeFromScene(this.pointCloud);
+
+                  var pos = data.positions;
+                  var col = data.colors;
+
+                  //generate
+                  var points = data.positions.length/3;
+                  var positions = new Float32Array( points* 3  ); 
+	                var colors    = new Float32Array( points* 3  );
+
+	                positions.set( pos );
+	                colors.set( col );
+
+                  var geometry = new THREE.BufferGeometry();
+                  geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+				          geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+
+                  geometry.computeVertexNormals();
+                  geometry.applyMatrix(new THREE.Matrix4().makeScale( 10, 10, 10 ) );
+
+
+                  var material = new THREE.PointCloudMaterial({ size: 0.2,vertexColors: THREE.VertexColors});
+                  var particles = new THREE.PointCloud( geometry, material );
+                  
+                  this.triDViewer.addToScene( particles );
+                  this.pointCloud = particles;
+                },
                 //public api
                 connect:function(){
                   this.sendMessage({event:"connectToScanner",data:null});
@@ -510,6 +544,8 @@ ctx.drawImage(video, 0, 0, 640, 480);
                     this.sendMessage({event:"scan", data:{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}});
                     this.scanStarted=true;
                     this.scanData = {positions:[],colors:[]};
+                    this._scanStart = new Date().getTime();
+                    this.scanTime = 0;
                 },
                 detectLaser:function(){
                     console.log("detectLaser");

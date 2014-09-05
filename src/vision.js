@@ -17,6 +17,15 @@ var Vision = function()
   this.frameWidth = 26.6;
   this.camWidth = 1280 ;
   this.camHeight = 960;
+
+  this.lineExtractionParams = {
+     gaussBlurKernel : [15,15],
+     threshold       : 22,
+     erosion         : 2,
+     dilation        : 5,
+     outThreshold    : 250,
+     maxDist         : 40
+  }
 }
 
 Vision.prototype={};
@@ -96,12 +105,6 @@ Vision.prototype.detectLaserLine =  function(laserOff, laserOn, threshold, debug
   imLaserLine.convertGrayscale();
   var houghInput = imLaserLine;
   
-  //FIXME: hack
-  /*var lower_threshold = [46, 0, 0];
-  var upper_threshold = [255, 255, 255];
-  houghInput.inRange(lower_threshold, upper_threshold);
-  houghInput.save("houghInput.png");*/
-  
   //args : rho:1, theta:PI/180, threshold:80, minLineLength:30, maxLineGap:10 
   var foundLines = houghInput.houghLinesP(1,Math.PI/2,20,50,10);
   console.log("foundLines",foundLines);
@@ -118,16 +121,22 @@ Vision.prototype.detectLaserLine =  function(laserOff, laserOn, threshold, debug
 
 Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
 {
-  var gaussBlurKernel = [15,15];
-  var threshold = 30;
-  var erosion = 2;
+  var params = this.lineExtractionParams;
+  var gaussBlurKernel = params.gaussBlurKernel;
+  var threshold       = params.threshold;
+  var erosion         = params.erosion;
+  var dilation        = params.dilation;
+  var outThreshold    = params.outThreshold;
+  var maxDist         = params.maxDist;
 
 
   var bwLaserOff = laserOff.copy();
   bwLaserOff.convertGrayscale();//convert to grayscale
+  if(debug) bwLaserOff.save("bwLaserOff.png");
 
   var bwLaserOn = laserOn.copy();
   bwLaserOn.convertGrayscale();//convert to grayscale
+  if(debug) bwLaserOn.save("bwLaserOn.png");
 
   var diffImage = new cv.Matrix(laserOn.width(), laserOn.height());
   diffImage.absDiff(bwLaserOn, bwLaserOff);//subtract both grayscales
@@ -139,13 +148,10 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
     
   //console.log("applying gaussian Blur");
   var gaussImage = diffImage.clone();
-  gaussImage.gaussianBlur(gaussBlurKernel);//,cv::Size(15,15),12,12)
+  gaussImage.gaussianBlur(gaussBlurKernel);
   
   if(debug) gaussImage.save("gaussImage.png");
   
-  //var tmp = new cv.Matrix(laserOn.width(), laserOn.height());
-  //tmp.absDiff(diffImage, gaus        //now iteratinf from right to left over bwLaserLine framesImage ); //diffImage-gaussImage
-  //diffImage = tmp;
   diffImage = gaussImage;
   
   //console.log("applying threshold");
@@ -154,10 +160,11 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
 
   if(debug) diffImage.save("postThreshold.png");
 
-  //console.log("applying erode");
+  diffImage.dilate( dilation );
+  if(debug) diffImage.save("diffImagePostDilate.png");
+
   diffImage.erode( erosion );//,cv::Mat(3,3,CV_8U,cv::Scalar(1))
   if(debug) diffImage.save("diffImagePostErode.png");
-  //console.log("applying canny");
   diffImage.canny( 20,50 );
   diffImage.cvtColor('CV_GRAY2BGR');
   if(debug) diffImage.save("diffImagePostCanny.png");
@@ -172,8 +179,6 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
   rows = laserImage.height(); 
   cols = laserImage.width();
 
-  var threshold = 250;//250
-  var maxDist = 40;//40
 
   for(var y = 0; y <rows; y++){
     for(x=0; x<cols; x++){
@@ -201,32 +206,13 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
           var pixelValRaw = [pixRow[idx],pixRow[idx+1],pixRow[idx+2]];
           var pixelVal=(pixelValRaw[0]+pixelValRaw[1]+pixelValRaw[2])/3;
            
-          if(pixelVal>160){
-             // console.log("pixelRow",diffImage.pixelRow(y));
-//console.log("pixelVal",pixelVal,idx);
-            //return;
-          }
-           if(pixelVal>threshold)
+           if(pixelVal>outThreshold)
             {
              //console.log("pixelVal",pixelVal,idx);
                edges[j]=x;
                j++;
             }
         }
-        /*for(var x = 0; x<cols; x++){
-            //node opencv workaround
-            //if(diffImage.channels()==3)
-            //{
-              var pixelValRaw = diffImage.pixel(y,x);
-              var pixelVal=(pixelValRaw[0],pixelValRaw[1]+pixelValRaw[2])/3;
-
-            if(pixelVal>threshold)
-            {
-               edges[j]=x;
-               j++;
-            }
-        }*/
-          //console.log("edges",edges);
         //iterate over detected edges, take middle of two edges
         for(var j=0; j<cols-1; j+=2){
             //
@@ -261,6 +247,11 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
     var result = laserImage.copy();
     ///result.convertGrayscale();
     if(debug) result.save("diffResult.png");
+
+    gaussImage=null;
+    bwLaserOn = null;
+    bwLaserOff = null;
+    laserImage = null;
     return result;
 }
 
@@ -356,11 +347,10 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 //translate coordinate system to the middle of the turntable
                 //console.log("computing, based on angle, point so far:", point);
                 point.z -= turnTable.position.z; //7cm radius of turntbale plus 5mm offset from back plane
-                point.x -=2.5;
-                point.z -=0;
+                //point.x -=2.5;
+                //point.z -=0;
           
                 var alphaDelta = turnTable.rotation;
-                
                 var alphaOld = Math.atan(point.z/point.x);
                 var alphaNew = alphaOld+alphaDelta.y*(Math.PI/180.0);
                 var hypotenuse = Math.sqrt(point.x*point.x + point.z*point.z);
@@ -372,15 +362,14 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVer
                 }
                 point.z = Math.sin(alphaNew)*hypotenuse;
                 point.x = Math.cos(alphaNew)*hypotenuse;
-                
 
 
-                log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");// && hypotenuse < 7
-                if(point.y>lowerLimit+0.5){ //eliminate points from the grounds, that are not part of the model
+                log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");// 
+                if(point.y>lowerLimit+0.5&& hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
                     //log.info("adding new point to thingamagic",point);
                     log.warn(turnTable.rotation);
                     model.positions.push( point.x, point.y, point.z);
-                    model.colors.push( r,g,b );
+                    model.colors.push( r/255,g/255,b/255 );
                     foundPoints+=1;
                     //model->addPointToPointCloud(point);
                 }
@@ -448,7 +437,7 @@ Vision.prototype.convertCvPointToPoint = function( cvPoint)
 Vision.prototype.computeLineFromPoints = function( p1, p2 )
 {
   log.debug("line from", p1,"to",p2);
-  var l= {a:0,b:0}; //{x: 14, y: 6.4, z: 28.8 } { x: 14, y: 0, z: 0 }
+  var l= {a:0,b:0};
   l.a = (p2.z-p1.z)/(p2.x-p1.x);
   l.b = p1.z-l.a*p1.x;
 
@@ -465,7 +454,6 @@ Vision.prototype.computeIntersectionOfLines = function( l1, l2 )
   i.z = l2.a*i.x+l2.b;
   return i;
 }
-
 
 module.exports = Vision;
 

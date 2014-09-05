@@ -1,3 +1,5 @@
+#include "digitalIOPerformance.h"
+
 // FabScan - http://hci.rwth-aachen.de/fabscan
 //
 //  Created by Francis Engelmann on 7/1/11.
