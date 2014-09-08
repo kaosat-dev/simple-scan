@@ -11,8 +11,13 @@ For now, server side requires gnode https://github.com/TooTallNate/gnode
 running simple-scan
 -------------------
 
-      gnode src/server.js
+      gnode --expose-gc src/server.js
 
+
+notes
+-----
+
+because of a memory leaks in node-opencv's videocapture you have to add the --expose-gc flag (see command above)
 
 then go to your browser at http://localhost:8080/
 

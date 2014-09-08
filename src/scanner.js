@@ -40,6 +40,12 @@ var Scanner =function(){
   this.turnTable.sendCommand = this.sendCommand;
 
   this.latestScan = null; //store the last scan in memory ?
+  
+  if(!fs.existsSync(this.outputFolder)){
+  
+    fs.mkdirSync(this.outputFolder, 0766);
+  
+  }
 
 }
 
@@ -87,8 +93,12 @@ Scanner.prototype.connect=function*()
 
   //
   var readFile  = Q.denodeify(fs.readFile);
-  var lastScan = JSON.parse( yield readFile(this.outputFolder+"pointCloud.dat") );
-  this.latestScan = lastScan ;
+  var defaultFile = this.outputFolder+"pointCloud.dat";
+  if(fs.existsSync(defaultFile))
+  {
+    var lastScan = JSON.parse( yield readFile(defaultFile) );
+    this.latestScan = lastScan ;
+  }
 }
 
 //send command to arduino, wait for ack
