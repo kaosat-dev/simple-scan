@@ -1,4 +1,4 @@
-   <link href='//fonts.googleapis.com/css?family=RobotoDraft:regular,bold,italic,thin,light,bolditalic,black,medium&lang=en' rel='stylesheet' type='text/css'>
+   <!--<link href='//fonts.googleapis.com/css?family=RobotoDraft:regular,bold,italic,thin,light,bolditalic,black,medium&lang=en' rel='stylesheet' type='text/css'>-->
 <link rel="import" href="components/polymer/polymer.html">
 <link rel="import" href="components/socket-io/socket-io.html">
 
@@ -31,8 +31,8 @@
 
 
 <link rel="import" href="components/three-js/three-js.html">
-<link rel="import" href="components/three-js-helpers/axis-helper.html">
-<link rel="import" href="components/three-js-helpers/grid-helper.html"> 
+<!--<link rel="import" href="components/three-js-helpers/axis-helper.html">
+<link rel="import" href="components/three-js-helpers/grid-helper.html"> -->
 
 
 
@@ -42,6 +42,7 @@
             <core-toolbar >
               <paper-icon-button icon="menu"></paper-icon-button>
               <span flex>Simple-scan</span>
+              <input type="button" on-tap="{{wsConnect}}" value="Test/debug" > </input>
               <span flex><template if="{{scanStarted}}">Scan in progress...</template></span>
               <span flex><template if="{{scanTime!=0}}">Scan took {{scanTime/60}} mins </template></span>
 
@@ -207,8 +208,8 @@
             <paper-toast id="toast" role="alert" text="{{userToastMessage}}" style="color:black;background: #4285f4;">
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
-
-            <socket-io id="socketIo" socketUrl="http://localhost:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged","calibImage","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <!--localhost:8082-->
+            <socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged","calibImage","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -525,6 +526,10 @@ ctx.drawImage(video, 0, 0, 640, 480);
                   this.pointCloud = particles;
                 },
                 //public api
+                wsConnect:function(){
+                console.log("attempting socket io connection");
+                  this.$.socketIo.connect();
+                },
                 connect:function(){
                   this.sendMessage({event:"connectToScanner",data:null});
                   //TODO: should be based on confirmation from server

@@ -27,7 +27,7 @@ Camera.prototype={};
 Camera.prototype.connect=function()
 {
   console.log("this.imWidth",this.imWidth,"this.imHeight",this.imHeight);
-  this.camera = new cv.VideoCapture(1);
+  this.camera = new cv.VideoCapture(0);
   this.camera.setWidth(this.imWidth);
   this.camera.setHeight(this.imHeight);
   this.isOn = true;

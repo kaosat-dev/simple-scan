@@ -1,7 +1,7 @@
 <html>
 <head>
    <script src="components/platform/platform.js"></script>
-   <link rel="import" href="simple-scan.html"> 
+   <link rel="import" href="vulcanized.html"> 
     <style>
       body{
         margin:0px;
@@ -18,14 +18,34 @@
       transition: opacity 1000ms;
       }
 
-      simple-scan:unresolved {
+
+
+#perspectiveView{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      z-index:1;
+    }
+      /*simple-scan:unresolved {
         opacity: 0;
-      }
+      }*/
 
 
     </style>
 </head>
 <body>
+    <script> 
+      /*var server = require("./src/serverWrapper");
+
+      var cv = require('opencv');
+
+
+       var camera = new cv.VideoCapture(0);
+       var im = camera.ReadSync();
+       im.save("foo.png");*/
+
+    </script>
     <simple-scan></simple-scan>
 </body>
 </html>

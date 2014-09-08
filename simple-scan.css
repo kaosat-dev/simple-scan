@@ -3,6 +3,7 @@
   display: block;
 }
 
+
 #video{
   display: none;}
 
@@ -27,7 +28,7 @@ three-js[resolved] {
   opacity: 1;
 }
 
-#perspectiveView{
+three-js /deep/ #perspectiveView{
       position: absolute;
       width: 100%;
       height: 100%;

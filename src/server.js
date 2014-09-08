@@ -1,23 +1,29 @@
 var express    = require('express'); 		// call express
-var io = require('socket.io').listen(8082);
-//var ss = require('socket.io-stream');
+var io         = require('socket.io');
 var app        = express(); 				// define our app using express
 var port = process.env.PORT || 8080; 		// set our port
 app.use(express.static("./"));
-
 
 
 var sleep      = require('./sleep');
 var Scanner = require("./scanner");
 var scanner = new Scanner();
 
-//////////////////////////
 
+var debug = require('debug')('socket.io')
+//////////////////////////
 
 
 var clientsMap = {};
 
+try{
 
+  io = io.listen(8082);
+
+}catch(error)
+{
+  console.log("socket.io error", error);
+}
 
 
 var co = require('co');
@@ -26,7 +32,9 @@ co(function* () {
     yield scanner.connect();
 
 //////////////////////////
-
+io.sockets.on("error", function(error){
+  console.log("socket.io error", error);
+});
 io.sockets.on('connection', function (socket) {
   console.log("connected ",socket.id);
   clientsMap[socket.id] = {};
@@ -150,6 +158,7 @@ io.sockets.on('connection', function (socket) {
 
 
 
+
 /*var attempts = 3000;
 //yield scanner.turnTable.toggle(true);
 scanner.camera.connect();
@@ -164,10 +173,10 @@ for(var i=0;i<attempts;i++)
 
 })();
 
-
-
-
-
-
+console.log("yup");
 app.listen(port);
 console.log('Magic happens on port ' + port);
+
+
+
+
