@@ -182,28 +182,26 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
    this.scanning = true; //start scanning, if false, scan stops
    var stepDegrees = stepDegrees;//turntableStepSize;
 
-   //make sure laser is on
-   //yield this.laser.turnOn();
-   //and turntable too
+   //make sure turntable is on
    this.turnTable.rotation.y = 0;
    yield this.turnTable.toggle(true);
   
     //iterate over a complete turn of the turntable
     for(i=0; i<360 && this.scanning==true; i+=stepDegrees){
 
+        try{
         //take picture without laser
         yield this.laser.turnOff();
         //yield sleep(150);
         var imNoLaser = yield this.camera.read();
-        if(debug) imNoLaser.saveAsync(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
+        if(debug) imNoLaser.save(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
         //imNoLaser.resize(1280,960);
 
-        //yield sleep(300);
         //take picture with laser
         yield this.laser.turnOn();
         var imLaser = yield this.camera.read();
         //imLaser.resize(1280,960);
-        if(debug) imLaser.saveAsync(this.outputFolder+'camLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
+        if(debug) imLaser.save(this.outputFolder+'camLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
 
         if(stream) model={positions:[],colors:[]};
         //here the magic happens
@@ -219,6 +217,11 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 
         //turn turntable x degrees
         yield this.turnTable.rotateByDegrees(stepDegrees);
+        }catch(error){
+          log.error("Uh-oh something went wrong");
+          log.error(error);
+        }
+        log.info("Done slice", i/stepDegrees," out of ", 360/stepDegrees);
     }
     this.scanning = false; //stop scanning
     yield this.turnTable.toggle(false);

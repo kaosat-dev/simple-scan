@@ -2,7 +2,10 @@
   "name": "simple-scan",
   "version": "0.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app://simple-scan/index.html",
+  "node-main": "src/serverWrapper.js",
+  "js-flags": "--expose-gc --harmony_generators DEBUG=*",
+  "node-remote": "localhost",
   "author": "kaosat-dev",
   "license": "GPLV3",
   "dependencies": {
@@ -10,8 +13,7 @@
     "opencv": "^0.5.0",
     "q": "^1.0.1",
     "serialport": "^1.4.5",
-    "socket.io": "",
-    "minilog": "^2.0.6",
+    "socket.io": ""
   },
   "devDependencies": {
     "co": "^3.1.0",
@@ -22,16 +24,17 @@
     "grunt-contrib-copy": "^0.5.0",
     "vulcanize": "^0.4.2",
     "grunt-contrib-clean": "^0.6.0",
-    "grunt-rename": "^0.1.4"
+    "grunt-rename": "^0.1.4",
+	"debug": "^2.0.0"
   },
   "window": {
-    "title": "Simple scan",
-    "toolbar": true,
+    "title": "simple-scan",
     "frame": true,
+    "toolbar": true,
     "width": 800,
-    "height": 600,
-    "position": "mouse",
-    "min_width": 640,
-    "min_height": 480
+    "height": 600
+  },
+  "webkit": {
+    "plugin": "true"
   }
 }
