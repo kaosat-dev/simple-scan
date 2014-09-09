@@ -234,13 +234,50 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 }
 
 //TODO: this should actually do some things !
-Scanner.prototype.calibrate = function *(debug)
+Scanner.prototype.calibrate = function *(doCapture, options, debug)
 {
-    var img = yield this.camera.read();
-    img.resize(320,240);
-    this.vision.drawHelperLines( img );
-    var buff = img.toBuffer()
-    return buff;
+    var options = options || {};
+    this.vision.lineExtractionParams = options;
+    var doCapture = doCapture || (!(doCapture) && this.vision.lastLaserOn==null) && (this.vision.lastLaserOff==null);
+
+    log.info("calibrating...capturing new frames:",doCapture, this.vision.lastLaserOn, this.vision.lastLaserOff);
+
+    var imNoLaser = null;
+    if(doCapture){
+      yield this.laser.turnOff();
+      imNoLaser = yield this.camera.read();
+      this.vision.lastLaserOff = imNoLaser;
+      log.info("captured camera image with no laser");
+
+    
+      //make sure laser is on
+      yield this.laser.turnOn();
+      var imLaser = yield this.camera.read();
+      this.vision.lastLaserOn = imLaser;
+      log.info("captured camera image with laser");
+
+      //cleanup 
+      //make sure laser is off
+      yield this.laser.turnOff();
+    }
+    else{
+      imNoLaser = this.vision.lastLaserOff;
+      imLaser   = this.vision.lastLaserOn;
+    }
+
+
+    var linesImg = imNoLaser.copy();
+    var debugImg = this.vision.extractLaserLine(imNoLaser, imLaser);
+
+    linesImg.resize(320,240);
+    debugImg.resize(320,240);
+    this.vision.drawHelperLines( linesImg );
+
+    var buffNoLaser = linesImg.toBuffer();
+    var buffDebuger = debugImg.toBuffer();
+
+    log.info("calibration processing done, returning data");
+    return {lines:buffNoLaser, debug:buffDebuger};
 }
 
 

@@ -21,7 +21,6 @@ three-js {
   z-index: 9;
   background-color:white;
   outline: none;
-
 }
 
 three-js[resolved] {
@@ -33,7 +32,7 @@ three-js /deep/ #perspectiveView{
       width: 100%;
       height: 100%;
       left: 0;
-      z-index:1;
+      z-index:10;
     }
 
 
@@ -48,6 +47,9 @@ three-js /deep/ #perspectiveView{
   overflow:auto;
 }
 
+.control{
+height: 20px;
+}
 
 /*styling of core/paper polymer elements*/
 
@@ -142,5 +144,22 @@ paper-menu-button /deep/ paper-item{
 
 paper-menu-button /deep/ span{
   font-size: 13px;
+}
+
+
+
+
+
+.green-slider paper-slider::shadow #sliderKnobInner,
+.green-slider paper-slider::shadow #sliderKnobInner::before,
+.green-slider paper-slider::shadow #sliderBar::shadow #activeProgress {
+  background-color: #0f9d58;
+}
+
+
+.red-slider paper-slider::shadow #sliderKnobInner,
+.red-slider paper-slider::shadow #sliderKnobInner::before,
+.red-slider paper-slider::shadow #sliderBar::shadow #activeProgress {
+  background-color: #ff3333;
 }
 

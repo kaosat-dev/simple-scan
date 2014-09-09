@@ -1,10 +1,13 @@
 var express    = require('express'); 		// call express
+
+console.log("foo");
 var io         = require('socket.io');
+console.log("foo");
 var app        = express(); 				// define our app using express
 var port = process.env.PORT || 8080; 		// set our port
 app.use(express.static("./"));
 
-
+console.log("foo");
 var sleep      = require('./sleep');
 var Scanner = require("./scanner");
 var scanner = new Scanner();
@@ -30,7 +33,6 @@ var co = require('co');
 co(function* () {
     console.log("start");
     yield scanner.connect();
-
 //////////////////////////
 io.sockets.on("error", function(error){
   console.log("socket.io error", error);
@@ -45,13 +47,6 @@ io.sockets.on('connection', function (socket) {
     stepperOn:scanner.turnTable.isOn,
     latestScan:scanner.latestScan,
     serialPorts:scanner.serialPorts});
-
-  socket.on('message', function (data) {
-    console.log("SERVER recieved message",data);
-    data.senderId = socket.id;
-    console.log("Server sending out", data);
-    socket.broadcast.emit('message',data);
-  });
 
   socket.on('userChanged', function (data) {
     console.log("SERVER recieved userChanged",data);
@@ -92,7 +87,6 @@ io.sockets.on('connection', function (socket) {
     })();
   });
 
-
   socket.on('detectLaser',function(debug){
     console.log("detectLaser");
     co(function* (){
@@ -106,19 +100,10 @@ io.sockets.on('connection', function (socket) {
    socket.on('calibrate',function(data){
     console.log("calibrating",data);
     co(function* (){
-        var calibData = yield scanner.calibrate(data.debug);
-        socket.emit('calibImage',{data:calibData});
+        var calibData = yield scanner.calibrate(data.doCapture, data.options,data.debug);
+        socket.emit('calibData',calibData);
     })();
    });
-
-   /*socket.on('scan',function(data){
-    console.log("starting scan",data);
-    co(function* (){
-        var scanData = yield scanner.scan(parseInt(data.stepDegrees), parseInt(data.vDpi),data.debug);
-        socket.emit('scanFinished',{data:scanData});
-    })();
-   });*/
-
 
    socket.on('scan',function(data){
     console.log("starting scan",data);
@@ -128,28 +113,6 @@ io.sockets.on('connection', function (socket) {
     })();
    });
   ///////////////////////////////////
-
-
-
-  //video frame recieved
-  socket.on('frame',function (data) {
-    data = data.split(',')[1];
-    //data = data?.split(',')?[1];
-    cv.readImage(new Buffer(data, 'base64'), function(err, im) {
-        console.log('errOpenCV ' + err);
-        /*im.detectObject("./node_modules/opencv/data/haarcascade_eye.xml", {}, function(err, ojos) {
-        });*/
-        im.detectObject("./node_modules/opencv/data/haarcascade_frontalface_alt.xml", {}, function(err, faces){  
- 
-					for (var i=0;i<faces.length; i++){
-						var x = faces[i];
-						im.ellipse(x.x + x.width/2, x.y + x.height/2, x.width/2, x.height/2);
-					}
-					im.save('./out.png');   
-		});
-
-    });
-  });
   
   socket.on('disconnect', function() {
     console.log("user",clientsMap[socket.id].name,"disconnected");

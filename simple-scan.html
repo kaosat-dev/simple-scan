@@ -14,7 +14,6 @@
 
 <link rel="import" href="components/core-tooltip/core-tooltip.html">
 <link rel="import" href="components/core-toolbar/core-toolbar.html">
-<link rel="import" href="components/core-dropdown/core-dropdown.html">
 
 
 <link rel="import" href="components/paper-icon-button/paper-icon-button.html">
@@ -29,10 +28,12 @@
 <link rel="import" href="components/paper-dialog/paper-dialog-transition.html">
 <link rel="import" href="components/paper-dialog/paper-dialog.html" >
 
+<link rel="import" href="components/paper-dropdown/paper-dropdown.html">
+<link rel="import" href="components/paper-slider/paper-slider.html">
 
 <link rel="import" href="components/three-js/three-js.html">
-<!--<link rel="import" href="components/three-js-helpers/axis-helper.html">
-<link rel="import" href="components/three-js-helpers/grid-helper.html"> -->
+<link rel="import" href="components/three-js-helpers/axis-helper.html">
+<link rel="import" href="components/three-js-helpers/grid-helper.html">
 
 
 
@@ -83,8 +84,7 @@
                 <three-stats id="stats" show></three-stats>
                 <tween-js></tween-js>
                 <three-js-scene name="main" active pickable>
-                  <three-hemisphereLight color="0xffEEEE" gndColor="0xffEEEE" pos="[0, 0, 1500]" intensity=0.6></three-hemisphereLight>
-                  <three-ambientLight color="0x262525" intensity="3"> </three-ambientLight>
+                  <three-ambientLight color="0xffffff" intensity="3"> </three-ambientLight>
                 </three-js-scene>
                 <three-js-scene name="helper" active>
                     <axis-helper> </axis-helper>
@@ -96,12 +96,82 @@
             </three-js>
 
             <core-pages selected="{{$.menuItems.selected}}" >
-              <div id="scanning"> stand in for settings</div>
-              <div id="calibration"> Calibration
-                <canvas id="calibCam" width="320" height="240"></canvas>
-                <paper-icon-button fill id="doCalib" label="Calibrate" icon="image:auto-fix" on-tap="{{calibrate}}" disabled?="{{!connected}}"></paper-icon-button>
+              <div id="scanning"></div>
 
+
+              <div id="calibration"> 
+                <h3>Calibration</h3>
+                <div>
+                  <paper-dropdown selected="{{calibView}}" >
+                      <paper-item value="calibCam" label="camera"></paper-item>
+                      <paper-item value="calibCamDebug" label="laser outline"></paper-item>
+                  </paper-dropdown>
+                </div>
+                <div id="calibView" style="width:320px;height:240px;position:relative">
+                  <core-pages selected="{{calibView-1}}" style="left:0px;right:0px;top:0px">
+                    <canvas id="calibCam" width="320" height="240" style="position:absolute"></canvas>
+                    <canvas id="calibCamDebug" width="320" height="240" style="position:absolute"></canvas>
+                  </core-pages>
+                  <div style="position:absolute;width:320px;height:240pxbackground:gray;"></div>
+                </div>    
+                <section id="calibControls" layout-horizontal center-justified>
+                  
+                  <div center horizontal layout>
+                    <paper-icon-button fill id="doCalib" label="Calibrate" icon="image:auto-fix" on-tap="{{calibrate}}" disabled?="{{!connected}}"></paper-icon-button>
+                    <div flex>Capture new image</div>
+                    <paper-checkbox id="newCaptureToggler" class="blue" alt="newCaptureToggler" checked="{{calibNewCaptureToggled}}"></paper-checkbox>
+                  </div>
+
+
+                  <section>
+                    <h4>Line detect</h4>
+                      <div center horizontal layout class="control">
+                        <div>Blur kernel</div><paper-slider value="15" max="30" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>Threshold</div><paper-slider value="{{scanner.vision.lineExtractionParams.threshold}}" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>Erosion</div><paper-slider value="{{scanner.vision.lineExtractionParams.erosion}}" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>Dilation</div><paper-slider value="{{scanner.vision.lineExtractionParams.dilation}}" max="100" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>OutThreshold</div><paper-slider value="{{scanner.vision.lineExtractionParams.outThreshold}}" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>MaxDist</div><paper-slider value="{{scanner.vision.lineExtractionParams.maxDist}}" max="255" editable></paper-slider>
+                      </div>
+                  </section>
+                  <section>
+                    <h4>Colors</h4>
+                    <div>Hue </div>
+                      <div center horizontal layout class="control red-slider">
+                        <div>R</div><paper-slider value="128" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control green-slider">
+                        <div>G</div><paper-slider value="128" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>B</div><paper-slider value="128" max="255" editable></paper-slider>
+                      </div>
+                    <div>Saturation </div>
+                      <div center horizontal layout class="control red-slider">
+                        <div>R</div><paper-slider value="128" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control green-slider">
+                        <div>G</div><paper-slider value="128" max="255" editable></paper-slider>
+                      </div>
+                      <div center horizontal layout class="control">
+                        <div>B</div><paper-slider value="128" max="255" editable></paper-slider>
+                      </div>
+                   </section>
+                </section>
               </div>
+
+
+
               <div id="settings">
                 Serial
                 <core-dropdown selected="1" >
@@ -209,7 +279,7 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
             <!--localhost:8082-->
-            <socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" autoConnect listenTo=["laserDetected","scanFinished","status","message","userChanged","calibImage","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+            <socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" listenTo=["laserDetected","scanFinished","status","userChanged","calibData","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
         </template>
         <script>
@@ -243,11 +313,39 @@
                 scanData:null,
                 pointCloud:null,
                 scanTime:0,
+
+                //
+                calibView:null,
+
                 //
                 colorsToggled:false,
                 //
                 userToastMessage:"Disconnected from socket.io server!",
 
+                //shadowing of "server side" structure
+                scanner : null,
+
+                observe:{ "scanner.vision.lineExtractionParams.dilation": "scannerChanged"},
+
+                created:function(){
+                  this.scanner= {
+                    vision:{},
+                    laser:{},
+                    turnTable:{},
+                    camera:{},
+                    vision:{}
+                  };
+
+                  this.scanner.vision.lineExtractionParams = {
+                     gaussBlurKernel : [15,15],
+                     threshold       : 22,
+                     erosion         : 2,
+                     dilation        : 5,
+                     outThreshold    : 250,
+                     maxDist         : 40
+                  };
+       
+                },
                 attached:function(){
                   //listen to some events
                   this.$.socketIo.addEventListener('s-io-connected',    this.onSIOConnect.bind(this) );
@@ -256,7 +354,7 @@
                   this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
                   this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
                   this.$.socketIo.addEventListener('s-io-chunkStreamed',this.onSIOScanChunkStreamed.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-calibImage'   ,this.onSIOCalibImage.bind(this) );
+                  this.$.socketIo.addEventListener('s-io-calibData'   ,this.onSIOCalibData.bind(this) );
                   
                 },
                 domReady:function(){
@@ -271,50 +369,10 @@
                   var turnTable = new THREE.Line( geometry, material );
                   turnTable.rotation.set(Math.PI/2,0,0)
                   this.triDViewer.addToScene( turnTable );
-      
-
-                  /*var geometry = new THREE.BufferGeometry();
-                  var positions = new Float32Array( particles * 3 );
-				          var colors = new Float32Array( particles * 3 );
-				          var color = new THREE.Color();
-
-				          var n = 1000, n2 = n / 2; // particles spread in the cube
-
-				          for ( var i = 0; i < positions.length; i += 3 ) {
-
-					          // positions
-					          var x = Math.random() * n - n2;
-					          var y = Math.random() * n - n2;
-					          var z = Math.random() * n - n2;
-
-					          positions[ i ]     = x;
-					          positions[ i + 1 ] = y;
-					          positions[ i + 2 ] = z;
-
-					          // colors
-					          var vx = ( x / n ) + 0.5;
-					          var vy = ( y / n ) + 0.5;
-					          var vz = ( z / n ) + 0.5;
-
-					          color.setRGB( vx, vy, vz );
-
-					          colors[ i ]     = color.r;
-					          colors[ i + 1 ] = color.g;
-					          colors[ i + 2 ] = color.b;
-
-				          }
-
-				          geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-				          geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
-
-				          geometry.computeBoundingSphere();
-
-                  var material = new THREE.ParticleBasicMaterial({ size: 0.2,color: 0xFF0000,vertexColors: THREE.VertexColors});
-                  var particles = new THREE.ParticleSystem( geometry, material );
-
-                  this.triDViewer.addToScene( particles );*/
 
 
+                  //connect websocket
+                  this.$.socketIo.connect();
                 },
                 inMessageChanged:function(){
                     console.log("inMessage", this.inMessage);
@@ -327,6 +385,13 @@
                   this.$.foo.toggle();
                 },
                 //attribute change handlers
+                propertyNameChanged:function(attrname){
+                  console.log("attr changed",attrname);
+                },
+                scannerChanged:function(){
+
+                  console.log("scanner changed");
+                },
                 laserToggledChanged:function()
                 {
                     console.log("laser is", this.laserToggled);
@@ -351,6 +416,10 @@
                 colorsToggledChanged:function(){
                   //this.pointCloud.material = this.
                 },
+                calibViewChanged:function(){
+                  console.log("calibView",this.calibView);
+                  var calibView = this.calibView;
+                },
                 //event handlers
                 onSIOConnect:function(){
                   this.connected = true;
@@ -360,7 +429,7 @@
                   this.$.toast.show();
                 },
                 onSIOStatus:function(e, detail, sender){
-                  console.log("recieved status event from socket io",e);
+                  console.log("recieved status event from socket io");
                   var status = e.detail.msg;
                   this.serialConnected = status.serialConnected;
                   this.laserToggled = status.laserOn;
@@ -419,14 +488,15 @@
                   this.triDViewer.addToScene( particles );
                   this.pointCloud = particles;
                 },
-                onSIOCalibImage:function(e,detail,sender){
-                  var data = e.detail.msg.data;
+                onSIOCalibData:function(e,detail,sender){
+                  var data = e.detail.msg;
                   console.log("calibration image recieved",data);
 
+                  //draw main image with calibration lines
                   var canvas = this.$.calibCam ;
                   var ctx = canvas.getContext('2d');
 
-                  var uint8Arr = new Uint8Array(data);//.buffer);
+                  var uint8Arr = new Uint8Array(data.lines);//.buffer);
                   var str = String.fromCharCode.apply(null, uint8Arr);
                   var base64String = btoa(str);
 
@@ -435,6 +505,23 @@
                       var x = 0;
                       var y = 0;
                       ctx.drawImage(this, x, y);
+                  }
+                  img.src = 'data:image/png;base64,' + base64String;
+
+
+                  //draw result image with debug outline
+                  var canvas2 = this.$.calibCamDebug ;
+                  var ctx2 = canvas2.getContext('2d');
+
+                  var uint8Arr = new Uint8Array(data.debug);//.buffer);
+                  var str = String.fromCharCode.apply(null, uint8Arr);
+                  var base64String = btoa(str);
+
+                  var img = new Image();
+                  img.onload = function() {
+                      var x = 0;
+                      var y = 0;
+                      ctx2.drawImage(this, x, y);
                   }
                   img.src = 'data:image/png;base64,' + base64String;
 
@@ -475,26 +562,6 @@ ctx.drawImage(video, 0, 0, 640, 480);
                     if(self.sendFrames)self.sendMessage({event:"frame", data: canvas.toDataURL("image/jpeg")});
 
                     });
-
-                    /*ctx.beginPath();
-                    ctx.rect(cara.x, cara.y, cara.width, cara.height);
-                    ctx.fillStyle = 'rgba(46, 166, 203, 0.5)';
-                    ctx.fill();
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#2ba6cb';
-                    ctx.stroke();
-                    if (cara.ojos) {
-                      for (var ojo in cara.ojos) {
-                        ojo = cara.ojos[ojo];
-                        ctx.beginPath();
-                        ctx.rect(ojo.x, ojo.y, ojo.width, ojo.height);
-                        ctx.fillStyle = 'transparent';
-                        ctx.fill();
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                      }
-                    }*/
-
                 },
 
                 drawPointCloud:function(data){
@@ -559,7 +626,7 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 },
                 calibrate:function(){
                   console.log("starting calibration");
-                  this.sendMessage({event:"calibrate", data:{debug:this.debugToggled}});
+                  this.sendMessage({event:"calibrate", data:{doCapture:this.calibNewCaptureToggled, options: this.scanner.vision.lineExtractionParams , debug:this.debugToggled}});
                   this.calibrationStarted=true;
                 }
             });

@@ -37,7 +37,17 @@ desktop version
   vulcanize simple-scan.html
 
 
+
+- notes on gyp modules:
+
+ - the version that need to be compiled are different based on running the server part in 
+node-main (option in package.json) or withing the main index.html
+
+
 - gyp modules that need to be rebuild usin nw-gyp:
+
+
+
 
  * node_modules/socket.io/node_modules/engine.io/node_modules/ws
  * node_modules/socket.io/node_modules/socket.io-client/node_modules/engine.io-client/node_modules/ws

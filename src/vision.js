@@ -26,6 +26,10 @@ var Vision = function()
      outThreshold    : 250,
      maxDist         : 40
   }
+
+  //storage for calibration, to avoid lots of cv.captures
+  this.lastLaserOn = null;
+  this.lastLaserOff = null;
 }
 
 Vision.prototype={};
@@ -256,7 +260,7 @@ Vision.prototype.extractLaserLine =  function(laserOff, laserOn, debug)
 }
 
 
-Vision.prototype.putPointsFromFrameToCloud = function( laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model)
+Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVertical, lowerLimit, laser, camera, turnTable, model )
 {
   log.info("////////putPointsFromFrameToCloud/////////");
     

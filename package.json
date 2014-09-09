@@ -2,15 +2,13 @@
   "name": "simple-scan",
   "version": "0.0.0",
   "description": "",
-  "main": "app://simple-scan/index.html",
-  "node-main": "src/serverWrapper.js",
-  "js-flags": "--expose-gc --harmony_generators DEBUG=*",
-  "node-remote": "localhost",
   "author": "kaosat-dev",
   "license": "GPLV3",
+  "repository":"kaosat-dev/simple-scan",
   "dependencies": {
     "express": "^4.8.5",
-    "opencv": "^0.5.0",
+    "minilog": "^2.0.6",
+    "opencv": "kaosat-dev/node-opencv",
     "q": "^1.0.1",
     "serialport": "^1.4.5",
     "socket.io": ""
@@ -25,8 +23,12 @@
     "vulcanize": "^0.4.2",
     "grunt-contrib-clean": "^0.6.0",
     "grunt-rename": "^0.1.4",
-	"debug": "^2.0.0"
+    "debug": "^2.0.0"
   },
+
+  "main": "app://simple-scan/index.html",
+  "js-flags": "--expose-gc --harmony_generators DEBUG=*",
+  "node-remote": "localhost",
   "window": {
     "title": "simple-scan",
     "frame": true,
