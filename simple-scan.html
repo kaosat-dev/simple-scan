@@ -36,6 +36,8 @@
 <link rel="import" href="components/three-js-helpers/grid-helper.html">
 
 
+<link rel="import" href="scanner-wrapper.html">
+
 
 <polymer-element name="simple-scan">
         <template>
@@ -281,6 +283,9 @@
             <!--localhost:8082-->
             <socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" listenTo=["laserDetected","scanFinished","status","userChanged","calibData","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
              </socket-io>
+
+
+            <scanner-wrapper> </scanner-wrapper>
         </template>
         <script>
             Polymer("simple-scan", {

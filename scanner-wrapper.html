@@ -1,0 +1,34 @@
+<polymer-element name="scanner-wrapper">
+<template repeat="{{item in obj | getKeys}}">
+  <span>Key: {{item}}</span>
+  <span>Value: {{obj[item]}}</span>
+</template>
+
+<script>
+  Polymer("scanner-wrapper", {
+    created:function(){
+      var isNodeWebkit = (typeof process == "object");
+      console.log("isNodeWebkit",isNodeWebkit);
+      self.scanner =  null;
+
+      if(isNodeWebkit){
+        var Scanner = require("./src/scanner");
+        scanner = new Scanner();
+      } 
+    },
+
+    connect:function(){
+    },
+
+    scan:function(stepDegrees, yDpi, stream, debug){
+    },
+
+    detectLaser:function(debug){
+    },
+
+    calibrate:function(doCapture, options, debug){
+    },
+  });
+</script>
+
+</polymer-element>

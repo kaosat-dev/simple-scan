@@ -192,7 +192,6 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
         try{
         //take picture without laser
         yield this.laser.turnOff();
-        //yield sleep(150);
         var imNoLaser = yield this.camera.read();
         if(debug) imNoLaser.save(this.outputFolder+'camNoLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
         //imNoLaser.resize(1280,960);
