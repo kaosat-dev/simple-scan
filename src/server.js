@@ -1,13 +1,9 @@
 var express    = require('express'); 		// call express
-
-console.log("foo");
 var io         = require('socket.io');
-console.log("foo");
 var app        = express(); 				// define our app using express
 var port = process.env.PORT || 8089; 		// set our port
 app.use(express.static("./"));
 
-console.log("foo");
 var sleep      = require('./sleep');
 var Scanner = require("./scanner");
 var scanner = new Scanner();
