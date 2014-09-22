@@ -47,7 +47,7 @@
               <core-toolbar >
                 <paper-icon-button icon="menu"></paper-icon-button>
                 <span flex>Simple-scan</span>
-                <input type="button" on-tap="{{wsConnect}}" value="Test/debug" > </input>
+                <input type="button" on-tap="{{connect}}" value="Test/debug" > </input>
                 <span flex><template if="{{scanStarted}}">Scan in progress...</template></span>
                 <span flex><template if="{{scanTime!=0}}">Scan took {{scanTime/60}} mins </template></span>
 
@@ -110,13 +110,13 @@
               <div id="calibration"> 
                 <h3>Calibration</h3>
                 <div>
-                  <paper-dropdown-menu-menu selected="{{calibView}}" >
+                  <paper-dropdown-menu selected="{{calibView}}" >
                       <paper-item value="calibCam" label="camera"></paper-item>
                       <paper-item value="calibCamDebug" label="laser outline"></paper-item>
-                  </paper-dropdown-menu-menu>
+                  </paper-dropdown-menu>
                 </div>
                 <div id="calibView" style="width:320px;height:240px;position:relative">
-                  <core-pages selected="{{calibView-1}}" style="left:0px;right:0px;top:0px">
+                  <core-pages selected="{{calibView}}" style="left:0px;right:0px;top:0px">
                     <canvas id="calibCam" width="320" height="240" style="position:absolute"></canvas>
                     <canvas id="calibCamDebug" width="320" height="240" style="position:absolute"></canvas>
                   </core-pages>
@@ -284,11 +284,14 @@
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
             <!--localhost:8082-->
-            <socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" listenTo=["laserDetected","scanFinished","status","userChanged","calibData","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
-             </socket-io>
+            <!--<socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" listenTo=["laserDetected","scanFinished","status","userChanged","calibData","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+             </socket-io>-->
 
 
-            <!--<scanner-wrapper> </scanner-wrapper>-->
+            <scanner-wrapper id="scannerWrapper" connected="{{connected}}" scanning="{{scanStarted}}"
+            calibImageBase="{{calibImageBase}}" calibImageDebug="{{calibImageDebug}}" pointCloudData="{{pointCloudData}}">
+            
+            </scanner-wrapper>
         </template>
         <script>
             Polymer("simple-scan", {
@@ -297,8 +300,6 @@
                 outMessage: "",
                 messages: [],
                 clients: {},
-
-                connected: false,
 
                 serialConnected:false,
                 serialPorts:[],
@@ -334,6 +335,11 @@
                 scanner : null,
 
                 observe:{ "scanner.vision.lineExtractionParams.dilation": "scannerChanged"},
+                
+                //FIXME: no too sure about these
+                calibImageBase:null,
+                calibImageDebug:null,
+                pointCloudData :null,
 
                 created:function(){
                   this.scanner= {
@@ -352,23 +358,14 @@
                      outThreshold    : 250,
                      maxDist         : 40
                   };
-       
+                  //this.scanner2 =null;
                 },
                 attached:function(){
-                  //listen to some events
-                  if(!(this.$.socketIo)) return;
-                  this.$.socketIo.addEventListener('s-io-connected',    this.onSIOConnect.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-disconnected', this.onSIODisconnect.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-status',       this.onSIOStatus.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-chunkStreamed',this.onSIOScanChunkStreamed.bind(this) );
-                  this.$.socketIo.addEventListener('s-io-calibData'   ,this.onSIOCalibData.bind(this) );
-                  
                 },
                 domReady:function(){
                   this.triDViewer = this.$.threeJs;
-
+                  this.scanner2 = this.$.scannerWrapper;
+    
                   //draw Turntable
                   var radius   = 75,
                       segments = 64,
@@ -413,12 +410,12 @@
                 laserToggledChanged:function()
                 {
                     console.log("laser is", this.laserToggled);
-                    this.sendMessage({event:"toggleLaser", data: this.laserToggled});
+                    this.scanner2.toggleLaser(this.laserToggled);
                 },
                 stepperToggledChanged:function()
                 {
                     console.log("stepper is", this.stepperToggled);
-                    this.sendMessage({event:"toggleStepper", data: this.stepperToggled});
+                    this.scanner2.toggleTurnTable(this.stepperToggled);
                 },
                 stepsToRotateChanged:function(){
                     this.sendMessage({event:"stepsToRotate",data:this.stepsToRotate});
@@ -438,6 +435,51 @@
                   console.log("calibView",this.calibView);
                   var calibView = this.calibView;
                 },
+                calibImageDebugChanged:function(){
+                  console.log("calibImageDebugChanged");
+                  var debugImg = this.calibImageDebug;
+                  
+                  var canvas2 = this.$.calibCamDebug ;
+                  var ctx2 = canvas2.getContext('2d');
+
+                  var uint8Arr = new Uint8Array(debugImg);//.buffer);
+                  var str = String.fromCharCode.apply(null, uint8Arr);
+                  var base64String = btoa(str);
+
+                  var img = new Image();
+                  img.onload = function() {
+                      var x = 0;
+                      var y = 0;
+                      ctx2.drawImage(this, x, y);
+                  }
+                  img.src = 'data:image/png;base64,' + base64String;
+                },
+                calibImageBaseChanged:function(){
+                  console.log("calibImageBaseChanged");
+                  var rawImg = this.calibImageBase;
+                  
+                                    //draw main image with calibration lines
+                  var canvas = this.$.calibCam ;
+                  var ctx = canvas.getContext('2d');
+
+                  var uint8Arr = new Uint8Array(rawImg);//.buffer);
+                  var str = String.fromCharCode.apply(null, uint8Arr);
+                  var base64String = btoa(str);
+
+                  var img = new Image();
+                  img.onload = function() {
+                      var x = 0;
+                      var y = 0;
+                      ctx.drawImage(this, x, y);
+                  }
+                  img.src = 'data:image/png;base64,' + base64String;
+                },
+                pointCloudDataChanged:function(){
+                  console.log("pointCloudDataChanged");
+                  this.drawPointCloud( this.pointCloudData );
+                
+                },
+               
                 //event handlers
                 onSIOConnect:function(){
                   this.connected = true;
@@ -583,6 +625,7 @@ ctx.drawImage(video, 0, 0, 640, 480);
                 },
 
                 drawPointCloud:function(data){
+                  if(!(data)) return;
                   if(this.pointCloud) this.triDViewer.removeFromScene(this.pointCloud);
 
                   var pos = data.positions;
@@ -608,44 +651,50 @@ ctx.drawImage(video, 0, 0, 640, 480);
                   var particles = new THREE.PointCloud( geometry, material );
                   
                   this.triDViewer.addToScene( particles );
+                  console.log("HERE", particles);
                   this.pointCloud = particles;
+                  
                 },
                 //public api
-                wsConnect:function(){
-                console.log("attempting socket io connection");
-                  this.$.socketIo.connect();
-                },
                 connect:function(){
-                  this.sendMessage({event:"connectToScanner",data:null});
-                  //TODO: should be based on confirmation from server
-                  this.serialConnected = true;
+                  this.scanner2.connect();
+                  
+                  //fixme : should not be immediate ? or waiting should be done in the wrapper ?
+                  //this.connected = true;this.serialConnected = true;
                 },
                 rotateCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CW",degrees:parseInt(this.angleToRotate)}});
+                  this.scanner2.rotateTurnTable(this.angleToRotate);
                 },
                 rotateCCW:function()
                 {
-                    this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-parseInt(this.angleToRotate)}});
+                  this.scanner2.rotateTurnTable(this.angleToRotate);
                 },
                 startScan:function()
                 {
                     console.log("starting Scan");
-                    this.sendMessage({event:"scan", data:{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}});
-                    this.scanStarted=true;
+                    this.scanner2.scan({debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert});
+
                     this.scanData = {positions:[],colors:[]};
                     this._scanStart = new Date().getTime();
                     this.scanTime = 0;
                 },
                 detectLaser:function(){
                     console.log("detectLaser");
-                    this.sendMessage({event:"detectLaser",data:{debug:this.debugToggled}});//data: canvas.toDataURL("image/jpeg")
                     this.laserDetected=false;
+                    this.scanner2.detectLaser();
                 },
                 calibrate:function(){
                   console.log("starting calibration");
-                  this.sendMessage({event:"calibrate", data:{doCapture:this.calibNewCaptureToggled, options: this.scanner.vision.lineExtractionParams , debug:this.debugToggled}});
                   this.calibrationStarted=true;
+                  var calibData = this.scanner2.calibrate(this.calibNewCaptureToggled,this.scanner.vision.lineExtractionParams);
+                  //FIXME: hack !
+                  return;
+                  var event = {};
+                  event.detail={msg:null};
+                  event.detail.msg = calibData;
+                  console.log("event",event);
+                  this.onSIOCalibData(event);
                 }
             });
         </script>
