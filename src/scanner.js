@@ -10,7 +10,6 @@ var Camera    = require("./camera");
 var TurnTable = require("./turntable");
 var Vision    = require("./vision");
 
-
 Minilog.suggest.clear().deny('vision', 'error');
 //Minilog.suggest.clear().deny('turntable', 'debug');
 var log = Minilog('scanner');

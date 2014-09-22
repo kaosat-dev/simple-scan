@@ -4,7 +4,7 @@ console.log("foo");
 var io         = require('socket.io');
 console.log("foo");
 var app        = express(); 				// define our app using express
-var port = process.env.PORT || 8080; 		// set our port
+var port = process.env.PORT || 8089; 		// set our port
 app.use(express.static("./"));
 
 console.log("foo");
