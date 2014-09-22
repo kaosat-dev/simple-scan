@@ -10,8 +10,8 @@
 
 
 <link rel="import" href="components/core-pages/core-pages.html">
+<link rel="import" href="components/core-header-panel/core-header-panel.html">
 <link rel="import" href="components/core-selector/core-selector.html">
-
 <link rel="import" href="components/core-tooltip/core-tooltip.html">
 <link rel="import" href="components/core-toolbar/core-toolbar.html">
 
@@ -34,7 +34,8 @@
 <link rel="import" href="components/three-js/three-js.html">
 <link rel="import" href="components/three-js-helpers/axis-helper.html">
 <link rel="import" href="components/three-js-helpers/grid-helper.html">
-
+<link rel="import" href="components/three-js-helpers/shadow-plane.html">
+<link rel="import" href="components/three-js-helpers/mirror-plane.html">
 
 <link rel="import" href="scanner-wrapper.html">
 
@@ -42,38 +43,40 @@
 <polymer-element name="simple-scan">
         <template>
             <link href="./simple-scan.css" rel="stylesheet" ></link>
-            <core-toolbar >
-              <paper-icon-button icon="menu"></paper-icon-button>
-              <span flex>Simple-scan</span>
-              <input type="button" on-tap="{{wsConnect}}" value="Test/debug" > </input>
-              <span flex><template if="{{scanStarted}}">Scan in progress...</template></span>
-              <span flex><template if="{{scanTime!=0}}">Scan took {{scanTime/60}} mins </template></span>
+            <core-header-panel flex mode="seamed">
+              <core-toolbar >
+                <paper-icon-button icon="menu"></paper-icon-button>
+                <span flex>Simple-scan</span>
+                <input type="button" on-tap="{{wsConnect}}" value="Test/debug" > </input>
+                <span flex><template if="{{scanStarted}}">Scan in progress...</template></span>
+                <span flex><template if="{{scanTime!=0}}">Scan took {{scanTime/60}} mins </template></span>
 
-              <core-selector selected="2" id="menuItems">
-                <core-tooltip label="Start scan">
-                  <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" disabled?="{{scanStarted}}"></paper-icon-button>
-                </core-tooltip>
-                <core-tooltip label="Calibrate">
-                  <paper-icon-button icon="image:auto-fix" on-tap="{{showCalibration}}" ></paper-icon-button>
-                </core-tooltip>
-                <core-tooltip label="Settings">
-                  <paper-icon-button icon="settings"></paper-icon-button>
-                </core-tooltip>
-                <core-tooltip label="Save scan">
-                  <paper-icon-button icon="file-download" disabled></paper-icon-button>
-                </core-tooltip>
-                <core-tooltip label="Connect to scanner">
-                  <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
-                </core-tooltip>
-              </core-selector>
-              
-              <paper-menu-button icon="more-vert" halign="right" valign="top">
-                  <paper-item icon="drive-keep" label="Menu Item 1"></paper-item>
-                  <paper-item icon="help"label="Help"></paper-item>
-                  <paper-item icon="about"label="About"></paper-item>
-              </paper-menu-button>
+                <core-selector selected="2" id="menuItems">
+                  <core-tooltip label="Start scan">
+                    <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" disabled?="{{scanStarted}}"></paper-icon-button>
+                  </core-tooltip>
+                  <core-tooltip label="Calibrate">
+                    <paper-icon-button icon="image:auto-fix" on-tap="{{showCalibration}}" ></paper-icon-button>
+                  </core-tooltip>
+                  <core-tooltip label="Settings">
+                    <paper-icon-button icon="settings"></paper-icon-button>
+                  </core-tooltip>
+                  <core-tooltip label="Save scan">
+                    <paper-icon-button icon="file-download" disabled></paper-icon-button>
+                  </core-tooltip>
+                  <core-tooltip label="Connect to scanner">
+                    <paper-icon-button icon="device:usb" disabled?="{{!serialConnected}}"></paper-icon-button>
+                  </core-tooltip>
+                </core-selector>
+                
+                <paper-menu-button icon="more-vert" halign="right" valign="top">
+                    <paper-item icon="drive-keep" label="Menu Item 1"></paper-item>
+                    <paper-item icon="help"label="Help"></paper-item>
+                    <paper-item icon="about"label="About"></paper-item>
+                </paper-menu-button>
 
-            </core-toolbar>
+              </core-toolbar>
+            </core-header-panel>
 
             <paper-dialog heading="Dialog" transition="paper-dialog-transition-center" id="foo">
               <paper-button label="More Info..." dismissive></paper-button>
@@ -82,25 +85,28 @@
             </paper-dialog>
             
             
-             <three-js id="threeJs" unresolved>
+             <three-js id="threeJs">
                 <three-stats id="stats" show></three-stats>
                 <tween-js></tween-js>
                 <three-js-scene name="main" active pickable>
-                  <three-ambientLight color="0xffffff" intensity="3"> </three-ambientLight>
+                  <three-directionalLight color="0xffdddd" castShadow shadowDarkness="0.4" pos="[500,200,300]"> </three-directionalLight>
+                  <three-ambientLight color="0xffffff" intensity="0.5"> </three-ambientLight>
+                  <shadow-plane up=[0,1,0]> </shadow-plane>
+                  <mirror-plane up=[0,1,0] resolution=1024> </mirror-plane>
                 </three-js-scene>
-                <three-js-scene name="helper" active>
+                <three-js-scene name="helpers" active>
                     <axis-helper> </axis-helper>
+                    <grid-helper up=[0,1,0]> </grid-helper>
                 </three-js-scene>
-                <three-js-viewport name="perspective" id="perspectiveView">
+                <three-js-viewport name="perspective" id="perspectiveView" class="perspectiveView">
                   <three-js-combinedCamera pos="[200,200,100]" orientation="diagonal" up=[0,1,0]></three-js-combinedCamera>
                   <three-js-orbitControls cameraUp=[0,1,0] autoRotate="{{autoRotate}}" autoRotateSpeed="10"> </three-js-orbitControls>
                 </three-js-viewport>
             </three-js>
 
+
             <core-pages selected="{{$.menuItems.selected}}" >
               <div id="scanning"></div>
-
-
               <div id="calibration"> 
                 <h3>Calibration</h3>
                 <div>
@@ -251,7 +257,6 @@
                     <div>
                       <video id="video" width="640" height="480" autoplay></video>
                       <canvas id="videoCanvas" width="640" height="480"></canvas>
-                      <!--<img id="img" src="./cam.png" alt="camera view"></img>-->
                     </div>
                     </div>
                   </div>
@@ -269,8 +274,6 @@
                 </div>
               </section>            
             </div>
-
-
             </core-pages>
             
             <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
@@ -285,7 +288,7 @@
              </socket-io>
 
 
-            <scanner-wrapper> </scanner-wrapper>
+            <!--<scanner-wrapper> </scanner-wrapper>-->
         </template>
         <script>
             Polymer("simple-scan", {
@@ -353,6 +356,7 @@
                 },
                 attached:function(){
                   //listen to some events
+                  if(!(this.$.socketIo)) return;
                   this.$.socketIo.addEventListener('s-io-connected',    this.onSIOConnect.bind(this) );
                   this.$.socketIo.addEventListener('s-io-disconnected', this.onSIODisconnect.bind(this) );
                   this.$.socketIo.addEventListener('s-io-status',       this.onSIOStatus.bind(this) );
@@ -373,11 +377,20 @@
                   geometry.vertices.shift();
                   var turnTable = new THREE.Line( geometry, material );
                   turnTable.rotation.set(Math.PI/2,0,0)
-                  this.triDViewer.addToScene( turnTable );
+                  this.triDViewer.addToScene( turnTable, "helpers"  );
 
 
+                  /*var geometry = new THREE.BoxGeometry( 50, 50, 50 );
+                  var material = new THREE.MeshLambertMaterial( { color: 0xdddddd, shading: THREE.FlatShading } ) ;//new THREE.MeshBasicMaterial( {color: 0xffff00} );
+                  var cube = new THREE.Mesh( geometry, material );
+  
+                  cube.castShadow = true;
+                  cube.receiveShadow = false;
+                  cube.position.set( 0, 24,0);
+
+                  this.triDViewer.addToScene( cube);*/
                   //connect websocket
-                  this.$.socketIo.connect();
+                  //this.$.socketIo.connect();
                 },
                 inMessageChanged:function(){
                     console.log("inMessage", this.inMessage);
