@@ -1,43 +1,183 @@
-<polymer-element name="scanner-wrapper">
-<template repeat="{{item in obj | getKeys}}">
+<polymer-element name="scanner-wrapper" attributes="connected scanning isNodeWebkit calibImageBase calibImageDebug pointCloudData">
+<!--<template repeat="{{item in obj | getKeys}}">
   <span>Key: {{item}}</span>
   <span>Value: {{obj[item]}}</span>
-</template>
+ </template>-->
+  
+  <template if="{{!(isNodeWebkit)}}">
+    <socket-io id="socketIo" socketUrl="http://127.0.0.1:8082" listenTo=["laserDetected","scanFinished","status","userChanged","calibData","chunkStreamed"] inMessage={{inMessage}} outMessage={{outMessage}} outEventName={{outEventName}}>
+    </socket-io>
+  </template>
+  
+
 
 <script>
   Polymer("scanner-wrapper", {
+    isNodeWebkit: true,
+    scanner:null,
+    serialPorts:null,//FIXME: should it be "availablePorts"??
+    autoConnect:false,
+    
+    connected:false,
+    scanning:false,
+    calibrating:false,
+
+    calibImageBase:null,
+    calibImageDebug:null,
+    
+    pointCloudData:null,
+    
     created:function(){
-      console.log("created scanner wrapper");
       var isNodeWebkit = (typeof process == "object");
-      console.log("isNodeWebkit",isNodeWebkit);
-      self.scanner =  null;
-
+      this.isNodeWebkit = isNodeWebkit;
+      
+      var co = require('co');
+      
       if(isNodeWebkit){
-        //test
-        /*var Vision = require("./src/vision");
-        var vision = new Vision();
-        
-        var cv = require('opencv');
-
-       var camera = new cv.VideoCapture(0);
-       var im = camera.ReadSync();
-       im.save("foo.png");*/
-        
         var Scanner = require("./src/scanner");
-        scanner = new Scanner();
-      } 
+        var scanner = new Scanner();
+        this.scanner = scanner;
+        if(this.autoConnect){
+          co(function* (){
+            yield scanner.connect();
+            this.connected   = scanner.connected;
+            this.serialPorts = scanner.serialPorts;
+          })();
+        }
+        
+      }else{
+        if(!(this.$.socketIo)) return;
+        this.$.socketIo.addEventListener('s-io-connected',    this.onSIOConnect.bind(this) );
+        this.$.socketIo.addEventListener('s-io-disconnected', this.onSIODisconnect.bind(this) );
+        this.$.socketIo.addEventListener('s-io-status',       this.onSIOStatus.bind(this) );
+        this.$.socketIo.addEventListener('s-io-laserDetected',this.onSIOlaserDetected.bind(this) );
+        this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
+        this.$.socketIo.addEventListener('s-io-chunkStreamed',this.onSIOScanChunkStreamed.bind(this) );
+      }
     },
 
     connect:function(){
+      if(this.isNodeWebkit)
+      {
+        var scanner = this.scanner;
+        var co = require('co');
+        co(function* (){
+          yield scanner.connect();
+        })();
+      }
+      else
+      {
+        console.log("socket.io version");
+        this.sendMessage({event:"connectToScanner",data:null});
+        //TODO: should be based on confirmation from server
+      }
+      
     },
 
-    scan:function(stepDegrees, yDpi, stream, debug){
+    scan:function(options){
+      var option = options || {};
+      options.stepDegrees = options.stepDegrees || 45;
+      options.vDpi = options.vDpi || 10;
+      options.debug = options.debug || false;
+      
+      var self = this;
+      
+      var EventEmitter = require("events").EventEmitter;
+      var socket = new EventEmitter();//TODO: handle streaming differently
+      
+      socket.on('chunkStreamed', function (data) {
+          //console.log("event has occured",data);
+          self.pointCloudData = null;
+          self.pointCloudData = data.data;
+      });
+      
+      if(this.isNodeWebkit)
+      {
+        var scanner = this.scanner;
+        var co = require('co');
+        co(function* (){
+          self.scanning = true;
+          var scanData = yield scanner.scan(parseFloat(options.stepDegrees), parseInt(options.vDpi),socket,options.debug);
+          
+          //temp hack
+          self.pointCloudData = null;
+          self.pointCloudData = scanData;
+          
+          self.scanning = false;
+        })();
+      }
+      else
+      {
+        this.sendMessage({event:"scan", data:{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}});
+      }
     },
 
     detectLaser:function(debug){
+      if(this.isNodeWebkit){
+        var scanner = this.scanner;
+        var co = require('co');
+        co(function* (){
+          var detected= yield scanner.detectLaser(debug);
+          console.log("here");
+        })();
+      }else{
+        this.sendMessage({event:"detectLaser",data:{debug:this.debugToggled}});//data: canvas.toDataURL("image/jpeg")
+      }
     },
 
     calibrate:function(doCapture, options, debug){
+      var doCapture = doCapture || true;
+      var options = options || {};
+      var debug = debug || false;
+      var self = this; 
+       
+      if(this.isNodeWebkit){
+        var scanner = this.scanner;
+        var co = require('co');
+        co(function* (){
+          var calibData = yield scanner.calibrate(doCapture, options, debug);
+          self.calibImageBase = calibData.lines;
+          self.calibImageDebug= calibData.debug;
+          
+          console.log("got calibration data");
+        })();
+      }else{
+          this.sendMessage({event:"calibrate", data:{doCapture:this.calibNewCaptureToggled, options:          this.scanner.vision.lineExtractionParams , debug:this.debugToggled}});
+      }
+    },
+    //for testing, not sure if it is going to be kept this way
+    toggleLaser:function(flag){
+      var scanner = this.scanner;
+      var co = require('co');
+      co(function* (){
+        yield scanner.laser.toggle(flag);
+      })();
+      //                    //this.sendMessage({event:"toggleLaser", data: this.laserToggled});
+    },
+    toggleTurnTable:function(flag){
+      var scanner = this.scanner;
+      var co = require('co');
+      co(function* (){
+        yield scanner.turnTable.toggle(flag);
+      })();
+      //this.sendMessage({event:"toggleStepper", data: this.stepperToggled});
+    
+    },
+    rotateTurnTable:function(degrees){
+      var scanner = this.scanner;
+      var co = require('co');
+      co(function* (){
+        yield scanner.turnTable.rotateByDegrees(degrees);
+      })();
+      /*this.sendMessage({event:"rotate", data: {direction:"CW",degrees:parseInt(this.angleToRotate)}});
+      rotateCCW:function()
+      {
+          this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-parseInt(this.angleToRotate)}});
+      */
+    },
+    wsConnect:function(){
+      console.log("attempting socket io connection");
+      this.$.socketIo.connect();
     },
   });
 </script>
