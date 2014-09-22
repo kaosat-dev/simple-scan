@@ -28,7 +28,7 @@
 <link rel="import" href="components/paper-dialog/paper-dialog-transition.html">
 <link rel="import" href="components/paper-dialog/paper-dialog.html" >
 
-<link rel="import" href="components/paper-dropdown/paper-dropdown.html">
+<link rel="import" href="components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="components/paper-slider/paper-slider.html">
 
 <link rel="import" href="components/three-js/three-js.html">
@@ -104,10 +104,10 @@
               <div id="calibration"> 
                 <h3>Calibration</h3>
                 <div>
-                  <paper-dropdown selected="{{calibView}}" >
+                  <paper-dropdown-menu-menu selected="{{calibView}}" >
                       <paper-item value="calibCam" label="camera"></paper-item>
                       <paper-item value="calibCamDebug" label="laser outline"></paper-item>
-                  </paper-dropdown>
+                  </paper-dropdown-menu-menu>
                 </div>
                 <div id="calibView" style="width:320px;height:240px;position:relative">
                   <core-pages selected="{{calibView-1}}" style="left:0px;right:0px;top:0px">
