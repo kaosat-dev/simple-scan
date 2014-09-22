@@ -7,11 +7,22 @@
 <script>
   Polymer("scanner-wrapper", {
     created:function(){
+      console.log("created scanner wrapper");
       var isNodeWebkit = (typeof process == "object");
       console.log("isNodeWebkit",isNodeWebkit);
       self.scanner =  null;
 
       if(isNodeWebkit){
+        //test
+        /*var Vision = require("./src/vision");
+        var vision = new Vision();
+        
+        var cv = require('opencv');
+
+       var camera = new cv.VideoCapture(0);
+       var im = camera.ReadSync();
+       im.save("foo.png");*/
+        
         var Scanner = require("./src/scanner");
         scanner = new Scanner();
       } 
