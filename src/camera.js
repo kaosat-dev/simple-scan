@@ -2,7 +2,7 @@ var Q = require('q');
 var sleep = require('./sleep');
 var cv = require('opencv');
 
-var Camera = function()
+var Camera = function(videoDeviceIndex)
 {
   //TODO: get these from config/make them settable
   this.position = {x:0,y:5.57,z:30.9};
@@ -19,6 +19,7 @@ var Camera = function()
 
   //FIXME : workaround for mem leak
   this._capturedFrames = 0;
+  this.videoDeviceIndex = videoDeviceIndex || 0;
 }
 
 
@@ -27,7 +28,7 @@ Camera.prototype={};
 Camera.prototype.connect=function()
 {
   console.log("this.imWidth",this.imWidth,"this.imHeight",this.imHeight);
-  this.camera = new cv.VideoCapture(0);
+  this.camera = new cv.VideoCapture(this.videoDeviceIndex);
   this.camera.setWidth(this.imWidth);
   this.camera.setHeight(this.imHeight);
   this.isOn = true;
