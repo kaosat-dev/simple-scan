@@ -28,6 +28,7 @@
 
   "main": "app://simple-scan/index.html",
   "js-flags": "--expose-gc --harmony_generators DEBUG=*",
+  "chromium-args": "--js-flags=--harmony_generators",
   "node-remote": "localhost",
   "window": {
     "title": "simple-scan",
