@@ -31,7 +31,7 @@ var Scanner =function(){
     
   this.laser     = new Laser(this.serial);
   this.turnTable = new TurnTable(this.serial);
-  this.camera    = new Camera();
+  this.camera    = new Camera(1);
   this.vision    = new Vision();
   
   //FIXME:hack
@@ -41,9 +41,7 @@ var Scanner =function(){
   this.latestScan = null; //store the last scan in memory ?
   
   if(!fs.existsSync(this.outputFolder)){
-  
     fs.mkdirSync(this.outputFolder, 0766);
-  
   }
 
 }
@@ -64,33 +62,52 @@ Scanner.prototype.connect=function*()
 {
   var serialConnect = Q.nbind(this.serial.open, this.serial);
   var serialList    = Q.nbind(serialPort.list, serialPort);
+  var serialPorts   = this.serialPorts;
   
   /*ports.forEach(function(port) {
     console.log(port.comName);
     console.log(port.pnpId);
     console.log(port.manufacturer);*/
-  var serialPorts = this.serialPorts =  yield serialList();
+  
   try{
-     yield serialConnect();
-     this.connected = true;
-  }
-  catch(error)
+    this.serialPorts = serialPorts =  yield serialList();
+  }catch(error)
   {
-    if(serialPorts.length>0)
-    {
-      console.log("connection failed, attempting on all ports");
-      this.serial.path = serialPorts[0].comName;
-      yield serialConnect();
-    }
-    //throw new Error("ye gods, run, I cannot connect!");
+    log.error("error fetching list of available serial ports:", error);
   }
-  console.log("serial connected");
-  this.serial.on("close",this.onDisconnected);
-  this.serial.on("error",this.onError);
-  yield sleep(500);
+  
+  function* connectAttempt()
+  {
+    try{
+       yield serialConnect();
+       this.connected = true;
+       this.serial.on("close",this.onDisconnected);
+       this.serial.on("error",this.onError);
+    }
+    catch(error)
+    {
+      log.error("failed to connect to serial",error);
+      //throw new Error("ye gods, run, I cannot connect!");
+    }
+    yield sleep(500);
+  }
+  
+  var reconnectAttempts = 5;
+  var autoConnect = true;
+  
+  for(var i=0;i<reconnectAttempts;i++)
+  {
+    yield connectAttempt();
+    if(this.connected && autoConnect && serialPorts.length> 0 )
+    {
+      this.serial.path = serialPorts[0].comName;
+      //console.log("connection failed, attempting on all ports");
+    }
+    else{
+      break;
+    }
+  }
 
-
-  //
   var readFile  = Q.denodeify(fs.readFile);
   var defaultFile = this.outputFolder+"pointCloud.dat";
   if(fs.existsSync(defaultFile))
@@ -106,13 +123,17 @@ Scanner.prototype.sendCommand=function(command)
   var deferred = Q.defer();
   var callback = function(response) {
     //console.log("waiting for data", this, response, response.toJSON());
-        if (response.toJSON()[0] == 213) {
+        var resp = response.toJSON();
+        //TODO: unclear why this is different under nw
+        if(resp.data) resp = resp.data;
+        resp = resp[0];
+        if (resp == 213) {
             this.removeListener("data",callback);
             deferred.resolve("ok");
-        } else if (response.toJSON()[0] == 211) {
-              deferred.resolve("ok");
-              this.removeListener("data",callback);
-            }
+        } else if (resp == 211) {
+          deferred.resolve("ok");
+          this.removeListener("data",callback);
+        }
   };
   this.serial.on("data", callback);
   this.serial.write( new Buffer(command) );
@@ -201,16 +222,18 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
         //imLaser.resize(1280,960);
         if(debug) imLaser.save(this.outputFolder+'camLaser'+i/stepDegrees+'.png',function(err,res){console.log(err,res);});
 
-        if(stream) model={positions:[],colors:[]};
+        //if(stream) 
+        model={positions:[],colors:[]};
         //here the magic happens
         this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0, this.laser, this.camera, this.turnTable, model);
 
         if(stream){
           stream.emit('chunkStreamed',{data:model});
+        }
           totalPoints+= model.positions.length;
           fullModel.positions = fullModel.positions.concat( model.positions);
           fullModel.colors    = fullModel.colors.concat( model.colors);
-        }
+        
         //geometries->setPointCloudTo(model->pointCloud);
 
         //turn turntable x degrees
@@ -227,8 +250,8 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 
     this.latestScan=fullModel;
     log.info("done scanning: result model: "+totalPoints+" points");
-    yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
-    return model;
+    if(this.saveScan) yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
+    return fullModel;
 }
 
 //TODO: this should actually do some things !
