@@ -20,8 +20,10 @@ var config = require("./config");
 
 var Scanner =function(){
   this.connected = false;
-  this.outputFolder = "./scanData/";
   this.scanning = false;
+  this.calibrating = false;
+  this.outputFolder = "./scanData/";
+  
 
   this.serialPorts = [];
   this.serial = new SerialPort("/dev/ttyACM0", {
@@ -39,10 +41,6 @@ var Scanner =function(){
   this.turnTable.sendCommand = this.sendCommand;
 
   this.latestScan = null; //store the last scan in memory ?
-  
-  if(!fs.existsSync(this.outputFolder)){
-    fs.mkdirSync(this.outputFolder, 0766);
-  }
 
 }
 
@@ -58,12 +56,41 @@ Scanner.prototype.onError=function*()
   console.log("error in connection to device");
 }
 
+Scanner.prototype.init=function*(){
+  //fetch list of serial ports
+  yield this.fetchPorts();
+
+  var readFile  = Q.denodeify(fs.readFile);
+  var defaultFile = this.outputFolder+"pointCloud.dat";
+  if(fs.existsSync(defaultFile))
+  {
+    var lastScan = JSON.parse( yield readFile(defaultFile) );
+    this.latestScan = lastScan ;
+  }
+  if(!fs.existsSync(this.outputFolder)){
+    fs.mkdirSync(this.outputFolder, 0766);
+  }
+}
+
+Scanner.prototype.fetchPorts=function*(){
+  var serialList    = Q.nbind(serialPort.list, serialPort);
+  var serialPorts   = this.serialPorts;
+  
+  try{
+    this.serialPorts = serialPorts =  yield serialList();
+  }catch(error)
+  {
+    log.error("error fetching list of available serial ports:", error);
+  }
+}
+
 Scanner.prototype.connect=function*()
 {
   var serialConnect = Q.nbind(this.serial.open, this.serial);
   var serialList    = Q.nbind(serialPort.list, serialPort);
   var serialPorts   = this.serialPorts;
-  
+  var serial        = this.serial;
+  var self = this;
   /*ports.forEach(function(port) {
     console.log(port.comName);
     console.log(port.pnpId);
@@ -80,9 +107,10 @@ Scanner.prototype.connect=function*()
   {
     try{
        yield serialConnect();
-       this.connected = true;
-       this.serial.on("close",this.onDisconnected);
-       this.serial.on("error",this.onError);
+       self.connected = true;
+       serial.on("close",self.onDisconnected);
+       serial.on("error",self.onError);
+       log.info("serial connected");
     }
     catch(error)
     {
@@ -98,7 +126,7 @@ Scanner.prototype.connect=function*()
   for(var i=0;i<reconnectAttempts;i++)
   {
     yield connectAttempt();
-    if(this.connected && autoConnect && serialPorts.length> 0 )
+    if((!this.connected) && autoConnect && serialPorts.length> 0 )
     {
       this.serial.path = serialPorts[0].comName;
       //console.log("connection failed, attempting on all ports");
@@ -108,13 +136,6 @@ Scanner.prototype.connect=function*()
     }
   }
 
-  var readFile  = Q.denodeify(fs.readFile);
-  var defaultFile = this.outputFolder+"pointCloud.dat";
-  if(fs.existsSync(defaultFile))
-  {
-    var lastScan = JSON.parse( yield readFile(defaultFile) );
-    this.latestScan = lastScan ;
-  }
 }
 
 //send command to arduino, wait for ack
@@ -228,13 +249,13 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
         this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0, this.laser, this.camera, this.turnTable, model);
 
         if(stream){
+          //stream.emit('chunkStreamed',{data:model});
           stream.emit('chunkStreamed',{data:model});
+          console.log("bla", model.positions.length);
         }
           totalPoints+= model.positions.length;
           fullModel.positions = fullModel.positions.concat( model.positions);
           fullModel.colors    = fullModel.colors.concat( model.colors);
-        
-        //geometries->setPointCloudTo(model->pointCloud);
 
         //turn turntable x degrees
         yield this.turnTable.rotateByDegrees(stepDegrees);
@@ -299,6 +320,13 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
 
     log.info("calibration processing done, returning data");
     return {lines:buffNoLaser, debug:buffDebuger};
+}
+
+Scanner.prototype.saveScan = function *(options)
+{
+  if(!this.latestScan) return;
+  var writeFile = Q.denodeify(fs.writeFile);
+  yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.latestScan));
 }
 
 
