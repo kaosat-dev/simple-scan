@@ -1,0 +1,81 @@
+<polymer-element name="calibration-view" attributes="scanner">
+  <template>
+    <div id="calibration"> 
+      <h3>Calibration</h3>
+        <div>
+          <paper-dropdown-menu selected="{{calibView}}" >
+              <paper-item value="calibCam" label="camera"></paper-item>
+              <paper-item value="calibCamDebug" label="laser outline"></paper-item>
+          </paper-dropdown-menu>
+        </div>
+        
+        <div id="calibView" style="width:320px;height:240px;position:relative">
+          <core-pages selected="{{calibView}}" style="left:0px;right:0px;top:0px">
+            <canvas id="calibCam" width="320" height="240" style="position:absolute"></canvas>
+            <canvas id="calibCamDebug" width="320" height="240" style="position:absolute"></canvas>
+          </core-pages>
+          <div style="position:absolute;width:320px;height:240pxbackground:gray;"></div>
+        </div>   
+         
+        <section id="calibControls" layout-horizontal center-justified>
+          <div center horizontal layout>
+            <paper-icon-button fill id="doCalib" label="Calibrate" icon="image:auto-fix" on-tap="{{calibrate}}" disabled?="{{!scanner2.connected}}"></paper-icon-button>
+            <div flex>Capture new image</div>
+            <paper-checkbox id="newCaptureToggler" class="blue" alt="newCaptureToggler" checked="{{calibNewCaptureToggled}}"></paper-checkbox>
+          </div>
+
+
+            <section>
+              <h4>Line detect</h4>
+                <div center horizontal layout class="control">
+                  <div>Blur kernel</div><paper-slider value="15" max="30" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>Threshold</div><paper-slider value="{{scanner.vision.lineExtractionParams.threshold}}" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>Erosion</div><paper-slider value="{{scanner.vision.lineExtractionParams.erosion}}" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>Dilation</div><paper-slider value="{{scanner.vision.lineExtractionParams.dilation}}" max="100" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>OutThreshold</div><paper-slider value="{{scanner.vision.lineExtractionParams.outThreshold}}" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>MaxDist</div><paper-slider value="{{scanner.vision.lineExtractionParams.maxDist}}" max="255" editable></paper-slider>
+                </div>
+            </section>
+            <section>
+              <h4>Colors</h4>
+              <div>Hue </div>
+                <div center horizontal layout class="control red-slider">
+                  <div>R</div><paper-slider value="128" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control green-slider">
+                  <div>G</div><paper-slider value="128" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>B</div><paper-slider value="128" max="255" editable></paper-slider>
+                </div>
+              <div>Saturation </div>
+                <div center horizontal layout class="control red-slider">
+                  <div>R</div><paper-slider value="128" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control green-slider">
+                  <div>G</div><paper-slider value="128" max="255" editable></paper-slider>
+                </div>
+                <div center horizontal layout class="control">
+                  <div>B</div><paper-slider value="128" max="255" editable></paper-slider>
+                </div>
+             </section>
+          </section>
+        </div>
+  </template>
+  <script>
+    Polymer("calibration-view", {
+      calibView:null,
+    
+    });
+  </script>
+</polymer-element>

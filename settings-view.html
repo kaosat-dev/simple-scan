@@ -1,0 +1,99 @@
+<polymer-element name="settings-view" attributes="scanner">
+  <template>
+    <div id="settings">
+
+      <section>
+        <h3>Quality</h3>
+        <div center horizontal layout>
+          <paper-input  id="angleToQuality" floatingLabel label="angleQuality (lower == better)" type="number" error="Input is not a number!"
+            value={{scanQual}}>
+          </paper-input>  
+          <paper-input  id="vertDpi" floatingLabel label="vertQuality (lower == better)" type="number" error="Input is not a number!"
+              value={{scanQualVert}}>
+          </paper-input>  
+        </div>
+      </section>             
+      
+      <section>
+        <!--<h3>Various</h3>
+        <div center horizontal layout>
+          <div flex>Toggle Debug</div>
+            <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{debugToggled}}"></paper-checkbox>
+          </div>
+          <div flex>Toggle Colors</div>
+            <paper-checkbox id="colorsToggler" class="blue" alt="colorsToggler" checked="{{colorsToggled}}"></paper-checkbox>
+          </div>
+        </div>-->
+      </section>
+      
+      
+      <section>
+        <h3>Laser</h3>
+        <div center horizontal layout>
+          <div flex>Toggle laser</div>
+            <paper-checkbox id="laserToggler" class="blue" alt="laserToggler" checked="{{laserToggled}}"></paper-checkbox>
+          </div>
+          <div center horizontal layout>
+            <div flex>Laser angle</div>
+              <paper-input disabled id="laserAngle" label="Laser angle" type="text"
+              value="{{laserAngle}}°"></paper-input> 
+            </div>
+            <div>
+              <paper-icon-button fill id="detectLaser" label="Detect laser" icon="image:auto-fix" on-tap="{{detectLaser}}" disabled?="{{!scanner2.connected}}"></paper-icon-button>
+              <template if="{{laserDetected}}"> <div style="background:red">Laser Detected</div></template>
+            </div>
+          </section>
+          
+          <section>
+            <h3>TurnTable</h3>
+            <div center horizontal layout>
+              <div flex>Toggle turnTable</div>
+              <paper-checkbox id="stepperToggler" class="blue" alt="stepperToggler" checked="{{stepperToggled}}"></paper-checkbox>
+            </div>
+            <div center horizontal layout>
+              <div >Rotate turnTable</div>
+              <div>
+                <paper-input id="angleToRotate"  floatingLabel label="rotation angle" type="number" error="Input is not a number!"
+              value={{angleToRotate}}
+                ></paper-input>    
+               <paper-input  id="stepsToRotate" floatingLabel label="rotation steps" type="number" error="Input is not a number!"
+            value={{stepsToRotate}}
+              ></paper-input>  
+              </div>
+            </div>
+            <div center horizontal layout>
+              <paper-icon-button fill id="rotateCCW" icon="rotate-left" on-tap="{{rotateCCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
+              <paper-icon-button fill id="rotateCW" icon="rotate-right" on-tap="{{rotateCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
+            </div>
+          </section>
+
+          <section>
+            <h3>Video</h3>
+            <div center horizontal layout>
+              Camera<select></select>
+            </div>
+
+            <div center horizontal layout>
+              <div flex>Toggle camera</div>
+              <paper-checkbox id="toggleCamera" class="blue" alt="cameraToggler" checked="{{cameraToggled}}"></paper-checkbox>
+            </div>
+
+            <div center horizontal layout>
+              <div flex>Camera feed</div>
+              <div>
+                <video id="video" width="640" height="480" autoplay></video>
+                <canvas id="videoCanvas" width="640" height="480"></canvas>
+              </div>
+              </div>
+            </div>
+
+          </section>   
+
+        </div>
+     </template>
+  <script>
+    Polymer("settings-view", {
+    
+    });
+  </script>
+</polymer-element>  

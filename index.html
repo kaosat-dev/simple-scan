@@ -20,27 +20,14 @@
         transition: opacity 1000ms;
       }
 
-
-
-      /*simple-scan:unresolved {
+      simple-scan[unresolved] {
         opacity: 0;
-      }*/
+      }
 
 
     </style>
 </head>
 <body fullbleed layout vertical>
-    <script> 
-      //var server = require("./src/serverWrapper");
-
-      /*var cv = require('opencv');
-
-
-       var camera = new cv.VideoCapture(0);
-       var im = camera.ReadSync();
-       im.save("foo.png");*/
-
-    </script>
-    <simple-scan></simple-scan>
+    <simple-scan unresolved></simple-scan>
 </body>
 </html>
