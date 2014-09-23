@@ -24,26 +24,35 @@
 
     calibImageBase:null,
     calibImageDebug:null,
-    
     pointCloudData:null,
+    
+    //for socket io , not sure I will keep them
+    outEventName: "message",
+    inMessage: "",
+    outMessage: "",
+    messages: [],
+    clients: {},    
     
     created:function(){
       var isNodeWebkit = (typeof process == "object");
       this.isNodeWebkit = isNodeWebkit;
-      
+      var self = this;
       var co = require('co');
       
       if(isNodeWebkit){
         var Scanner = require("./src/scanner");
         var scanner = new Scanner();
-        this.scanner = scanner;
-        if(this.autoConnect){
-          co(function* (){
-            yield scanner.connect();
-            this.connected   = scanner.connected;
-            this.serialPorts = scanner.serialPorts;
-          })();
-        }
+        self.scanner = scanner;
+        
+        co(function* (){
+          yield scanner.init();
+          if(this.autoConnect) yield scanner.connect();
+          self.connected   = scanner.connected;
+          self.serialPorts = scanner.serialPorts;
+          self.pointCloudData = scanner.latestScan;
+          console.log("serialPorts", self.serialPorts);
+        })();
+        
         
       }else{
         if(!(this.$.socketIo)) return;
@@ -57,21 +66,26 @@
     },
 
     connect:function(){
+      var self = this;
       if(this.isNodeWebkit)
       {
         var scanner = this.scanner;
         var co = require('co');
         co(function* (){
           yield scanner.connect();
+          self.connected   = scanner.connected;
+          self.serialPorts = scanner.serialPorts;
         })();
       }
       else
       {
         console.log("socket.io version");
         this.sendMessage({event:"connectToScanner",data:null});
+        self.connected = true;
+        //connect websocket
+        //this.$.socketIo.connect();
         //TODO: should be based on confirmation from server
       }
-      
     },
 
     scan:function(options){
@@ -86,9 +100,11 @@
       var socket = new EventEmitter();//TODO: handle streaming differently
       
       socket.on('chunkStreamed', function (data) {
-          //console.log("event has occured",data);
+          console.log("event has occured");//,data);
           self.pointCloudData = null;
           self.pointCloudData = data.data;
+          //console.log("foo", self.pointCloudData);
+          self.fire("modelchanged");
       });
       
       if(this.isNodeWebkit)
@@ -99,7 +115,6 @@
           self.scanning = true;
           var scanData = yield scanner.scan(parseFloat(options.stepDegrees), parseInt(options.vDpi),socket,options.debug);
           
-          //temp hack
           self.pointCloudData = null;
           self.pointCloudData = scanData;
           
@@ -175,10 +190,117 @@
           this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-parseInt(this.angleToRotate)}});
       */
     },
+    save:function(){
+      var scanner = this.scanner;
+      var co = require('co');
+      co(function* (){
+        yield scanner.saveScan();
+      })();
+    
+    },
+    //OTHER STUFF : TODO: cleanup
     wsConnect:function(){
       console.log("attempting socket io connection");
       this.$.socketIo.connect();
     },
+    inMessageChanged:function(){
+                    console.log("inMessage", this.inMessage);
+    },
+    //send a message via socket-io
+    sendMessage:function(cmd){
+      //this.outMessage = cmd;
+      var deferred = Q.defer();
+      var callback = function(response) {
+        //console.log("waiting for data", this, response, response.toJSON());
+            var resp = response.toJSON();
+            //TODO: unclear why this is different under nw
+            if(resp.data) resp = resp.data;
+            resp = resp[0];
+            if (resp == 213) {
+                this.removeListener("data",callback);
+                deferred.resolve("ok");
+            } else if (resp == 211) {
+              deferred.resolve("ok");
+              this.removeListener("data",callback);
+            }
+      };
+      //this.serial.on("data", callback);
+      //this.serial.write( new Buffer(command) );
+      return deferred.promise; 
+    },
+    onSIOConnect:function(){
+      this.connected = true;
+    },
+    onSIODisconnect:function(){
+      console.log("disconnected");
+      this.$.toast.show();
+    },//event handlers
+      onSIOStatus:function(e, detail, sender){
+        console.log("recieved status event from socket io");
+        var status = e.detail.msg;
+        //this.serialConnected = status.serialConnected;
+        this.laserToggled = status.laserOn;
+        this.stepperToggled = status.stepperOn;
+        this.serialPorts = status.serialPorts;
+
+        if(status.latestScan){
+          this.drawPointCloud( status.latestScan );
+        }
+      },
+      onSIOlaserDetected:function(e, detail, sender){
+        console.log("laser detected",e.detail.msg);
+        this.laserDetected=e.detail.msg.detected;
+      },
+      onSIOScanFinished:function(e,detail,sender){
+        console.log("scan finished",e.detail.msg.data);
+        this.scanStarted = false;
+
+        var scanEnd = new Date().getTime();
+        var scanTime = (Math.round(scanEnd-this._scanStart) / 1000);
+        console.log("scan took", scanTime,"seconds, ie", (scanTime/60), "minutes");
+        this.scanTime = scanTime;
+      },
+      onSIOScanChunkStreamed:function(e,detail,sender){
+        console.log("scan chunk rcv");
+        //TODO: user buffers, merge them, render
+        var scanData = e.detail.msg.data;
+        if(this.pointCloud) this.triDViewer.removeFromScene(this.pointCloud);
+      
+        this.scanData.positions = this.scanData.positions.concat( scanData.positions );
+        this.scanData.colors    = this.scanData.colors.concat( scanData.colors );
+
+        var pos = this.scanData.positions;
+        var col = this.scanData.colors;
+
+        //generate
+        var points = this.scanData.positions.length/3;
+        var positions = new Float32Array( points* 3  ); 
+        var colors    = new Float32Array( points* 3  );
+
+        positions.set( pos );
+        colors.set( col );
+
+        var geometry = new THREE.BufferGeometry();
+        geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+        geometry.addAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+
+        //geometry.computeFaceNormals();
+        geometry.computeVertexNormals();
+        geometry.applyMatrix(new THREE.Matrix4().makeScale( 10, 10, 10 ) );
+
+
+        var material = new THREE.PointCloudMaterial({ size: 0.2,vertexColors: THREE.VertexColors});
+        var particles = new THREE.PointCloud( geometry, material );
+        
+        this.triDViewer.addToScene( particles );
+        this.pointCloud = particles;
+      },
+      onSIOCalibData:function(e,detail,sender){
+        var data = e.detail.msg;
+        console.log("calibration image recieved",data);
+        this.calibImageBase  = data.lines;
+        this.calibImageDebug = data.debug;
+      },
   });
 </script>
 
