@@ -66,6 +66,14 @@ Camera.prototype.read=function*()
   var im = this._read();//yield this.readCamera();
   if(this.flipY) im.rotate(180);
   if(this.flipX) im.rotate(-180);
+  
+  //FIXME: force image size to intended resolution
+  var width = im.width();//laserLine.height();
+  var height = im.height();//laserLine.width();
+  if( width != this.imWidth || height != this.imHeight)
+  {
+    im.resize(this.imWidth,this.imHeight);
+  }
 
   return im;
 }
