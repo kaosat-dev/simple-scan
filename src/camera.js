@@ -20,6 +20,7 @@ var Camera = function(videoDeviceIndex)
   //FIXME : workaround for mem leak
   this._capturedFrames = 0;
   this.videoDeviceIndex = videoDeviceIndex || 0;
+  this.framesToFlush = 25;//workaround for camera buffers not emptying
 }
 
 
@@ -56,8 +57,7 @@ Camera.prototype.read=function*()
 {
   if(!(this.isOn)) this.connect();
   
-  var flushAmount = 25;
-  for(var i=0;i<flushAmount;i++)
+  for(var i=0;i<this.framesToFlush;i++)
   {
     //yield this.readCamera();//empty buffer?
     this._read();
