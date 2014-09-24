@@ -55,6 +55,7 @@ calibration-view{
   overflow-y: scroll;
   background: white;
   padding: 10px;
+  opacity:0;
 }
 
 settings-view{
@@ -62,12 +63,40 @@ settings-view{
   overflow:hidden;
   background: white;
   padding: 10px;
+  opacity:0;
 }
 
 #scanning{
   overflow:hidden;
   height:0px;
+  opacity:0;
 }
+
+
+#serialSelector{
+
+  color:color: #a8a8a8 !important;
+  cursor: auto;
+}
+
+#serialSelector /deep/ core-dropdown{
+  top:34px;
+  margin:0;padding:0;
+}
+
+#serialSelector /deep/ paper-item{
+  height: 22px;
+  font-size: 14px;
+}
+
+#serialSelector /deep/ paper-item{
+  height: 22px;
+  font-size: 14px;
+}
+
+
+
+
 /*styling of core/paper polymer elements*/
 
 core-pages.controls{
@@ -81,6 +110,12 @@ core-pages.controls{
 
 core-header-panel {
   height: 100%;
+}
+
+/*FIXME: workaround for this bug : https://github.com/Polymer/core-pages/issues/11*/
+.core-selected {
+  opacity:1;
+
 }
 
 
@@ -133,6 +168,10 @@ core-dropdown::shadow #menu {
     overflow:hidden;
 }
 
+:host /deep/ core-dropdown.narrow {
+  max-width: 100px;
+}
+
 
 :host /deep/ paper-input{
   padding: 10px 10px 10px 0;
@@ -148,16 +187,12 @@ paper-input /deep/ #floatedlabel {
 }
 
 
-paper-checkbox.blue::shadow #checkbox.checked {
+:host /deep/ paper-checkbox.blue::shadow #checkbox.checked {
   border-color: #1CB9EB;
 }
- paper-checkbox {
+:host /deep/  paper-checkbox {
   padding: 10px 10px 10px 0;
 }
-
-:host /deep/ core-dropdown.narrow {
-      max-width: 100px;
-    }
 
 
 paper-menu-button /deep/ paper-item{
@@ -168,20 +203,27 @@ paper-menu-button /deep/ span{
   font-size: 13px;
 }
 
+paper-menu-button::shadow .paper-menu-button-overlay-bg { border-radius:0px;}
+
+:host /deep/ .paper-menu-button-menu-container {
+  overflow: auto;
+  max-height: 100%;
+  max-width: 100%;
+  background:red;
+  height:34px;
+}
 
 
-
-
-.green-slider paper-slider::shadow #sliderKnobInner,
-.green-slider paper-slider::shadow #sliderKnobInner::before,
-.green-slider paper-slider::shadow #sliderBar::shadow #activeProgress {
+:host /deep/ .green-slider paper-slider::shadow #sliderKnobInner,
+:host /deep/ .green-slider paper-slider::shadow #sliderKnobInner::before,
+:host /deep/ .green-slider paper-slider::shadow #sliderBar::shadow #activeProgress {
   background-color: #0f9d58;
 }
 
 
-.red-slider paper-slider::shadow #sliderKnobInner,
-.red-slider paper-slider::shadow #sliderKnobInner::before,
-.red-slider paper-slider::shadow #sliderBar::shadow #activeProgress {
+:host /deep/ .red-slider paper-slider::shadow #sliderKnobInner,
+:host /deep/ .red-slider paper-slider::shadow #sliderKnobInner::before,
+:host /deep/ .red-slider paper-slider::shadow #sliderBar::shadow #activeProgress {
   background-color: #ff3333;
 }
 
