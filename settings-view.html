@@ -22,15 +22,18 @@
       </section>             
       
       <section>
-        <!--<h3>Various</h3>
-        <div center horizontal layout>
+        <h4>Various</h4>
+        <div center horizontal layout class="control">
           <div flex>Toggle Debug</div>
-            <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{debugToggled}}"></paper-checkbox>
-          </div>
+          <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{debugToggled}}"></paper-checkbox>
+        </div>
+        <div center horizontal layout class="control">
           <div flex>Toggle Colors</div>
-            <paper-checkbox id="colorsToggler" class="blue" alt="colorsToggler" checked="{{colorsToggled}}"></paper-checkbox>
-          </div>
-        </div>-->
+          <paper-checkbox id="colorsToggler" class="blue" alt="colorsToggler" checked="{{scanner.display.realColors}}"></paper-checkbox>
+        </div>
+        <div center horizontal layout class="control">
+          <div>Particle Size</div><paper-slider value="{{scanner.display.particleSize}}" max="10" editable></paper-slider>
+        </div>
       </section>
       
       
@@ -38,7 +41,9 @@
         <h3>Laser</h3>
         <div center horizontal layout>
           <div flex>Toggle laser</div>
-            <paper-checkbox id="laserToggler" class="blue" alt="laserToggler" checked="{{laserToggled}}"></paper-checkbox>
+            <paper-checkbox id="laserToggler" class="blue" alt="laserToggler" checked="{{laserToggled}}" 
+            disabled?="{{scanner.scanning || (!scanner.connected)}}"
+            ></paper-checkbox>
           </div>
           <div center horizontal layout>
             <div flex>Laser angle</div>
@@ -112,6 +117,9 @@
       _stepsPerRevo:400,//how many steps per full rotation
       
       quality: null,
+      
+      pointCloudPointSize:1,
+      pointCloudTrueColors:false,
       
       //attribute change handlers
       laserToggledChanged:function()

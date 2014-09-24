@@ -16,7 +16,7 @@
     isNodeWebkit: true,
     scanner:null,
     serialPorts:null,//FIXME: should it be "availablePorts"??
-    autoConnect:false,
+    autoConnect:true,
     
     connected:false,
     scanning:false,
@@ -30,6 +30,7 @@
     
     camera:null,
     vision:null,
+    display:null,//NOT SURE ? should we keep visual settings here?
     
     scanQual:45,
     scanQualVert:2,
@@ -87,6 +88,9 @@
            outThreshold    : 250,
            maxDist         : 40
         };
+      self.display = {};
+      self.display.particleSize = 1;
+      self.display.realColors = true;
       
       
       if(isNodeWebkit){
@@ -96,10 +100,10 @@
         
         co(function* (){
           yield scanner.init();
-          if(this.autoConnect) yield scanner.connect();
+          if(self.autoConnect) yield scanner.connect();
           self.connected      = scanner.connected;
           self.serialPorts    = scanner.serialPorts;
-          self.pointCloudData = scanner.latestScan;
+          self.pointCloudData = scanner.currentScan;
           self.autoReload     = scanner.autoReload;
           
           //shadow the "server" structure/params
@@ -145,14 +149,13 @@
 
     scan:function(options){
       var options = options || {};
-      /*options.stepDegrees = options.stepDegrees || this.scanQual;
+      options.stepDegrees = options.stepDegrees || this.scanQual;
       options.vDpi = options.vDpi || this.scanQualVert;
-      options.debug = options.debug || false;*/
+      options.debug = options.debug || false;
+      /*
       options.stepDegrees  = this.scanQual;
       options.vDpi =  this.scanQualVert;
-      options.debug =  false;
-      
-      
+      options.debug =  false;*/
       //{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}
       
       var self = this;
@@ -173,13 +176,15 @@
         var scanner = this.scanner;
         var co = require('co');
         co(function* (){
+
           self.scanning = true;
           var scanData = yield scanner.scan(parseFloat(options.stepDegrees), parseInt(options.vDpi),socket,options.debug);
           
           self.pointCloudData = null;
           self.pointCloudData = scanData;
-          
+
           self.scanning = false;
+
         })();
       }
       else
@@ -214,7 +219,9 @@
           var calibData = yield scanner.calibrate(doCapture, options, debug);
           self.calibImageBase = calibData.lines;
           self.calibImageDebug= calibData.debug;
+          self.pointCloudData = calibData.pointCloudData;
           
+          self.fire("modelchanged");
           console.log("got calibration data");
         })();
       }else{
@@ -251,11 +258,22 @@
           this.sendMessage({event:"rotate", data: {direction:"CCW",degrees:-parseInt(this.angleToRotate)}});
       */
     },
-    save:function(){
+    saveScan:function(fileName, options){
       var scanner = this.scanner;
       var co = require('co');
       co(function* (){
-        yield scanner.saveScan();
+        yield scanner.saveScan(fileName, options);
+      })();
+    },
+    
+    loadScan:function(fileName){
+      var self = this;
+      var scanner = this.scanner;
+      var co = require('co');
+      co(function* (){
+        yield scanner.loadScan(fileName);
+        self.pointCloudData = self.scanner.currentScan;
+        self.fire("modelchanged");
       })();
     },
     
@@ -311,8 +329,8 @@
         this.stepperToggled = status.stepperOn;
         this.serialPorts = status.serialPorts;
 
-        if(status.latestScan){
-          this.drawPointCloud( status.latestScan );
+        if(status.currentScan){
+          this.drawPointCloud( status.currentScan );
         }
       },
       onSIOlaserDetected:function(e, detail, sender){

@@ -49,7 +49,6 @@
               <core-toolbar>
                 <!--<paper-icon-button icon="menu"></paper-icon-button>-->
                 <span flex>Simple-scan</span>
-                
                 <!-- TODO: replace these -->
                 <span flex><template if="{{!scanner.connected}}">Please connect the scanner</template></span>
                 <span flex><template if="{{scanner.scanning}}">Scan in progress...</template></span>
@@ -68,6 +67,9 @@
                   </core-tooltip>
                   <core-tooltip label="Save scan">
                     <paper-icon-button icon="file-download"  on-tap="{{save}}" ></paper-icon-button>
+                  </core-tooltip>
+                  <core-tooltip label="Load scan">
+                    <paper-icon-button icon="file-upload"  on-tap="{{load}}" ></paper-icon-button>
                   </core-tooltip>
                 </core-selector>
                 
@@ -112,6 +114,13 @@
               </div>
             </core-header-panel>
             
+            
+            <input style="display:none;" id="fileLoaderDialog" type="file" />
+            <input style="display:none;" id="fileSaverDialog" type="file" nwsaveas="pointCloud.ply" />
+            
+            
+            
+            
             <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
@@ -126,37 +135,35 @@
               <paper-button label="Accept" affirmative autofocus></paper-button>
             </paper-dialog>
 
-            <scanner-wrapper id="scannerWrapper"
-            calibImageBase="{{calibImageBase}}" calibImageDebug="{{calibImageDebug}}" pointCloudData="{{pointCloudData}}" on-modelchanged="{{fooBar}}">
+            <scanner-wrapper id="scannerWrapper" 
+            pointCloudData="{{pointCloudData}}" on-modelchanged="{{fooBar}}">
             </scanner-wrapper>
         </template>
         <script>
             Polymer("simple-scan", {
+                scanner:null,//shadowing of "server side" structure
                 debugToggled  :false,
                 
                 scanData:null,
+                pointCloudData :null,
                 pointCloud:null,
                 scanTime:0,
 
-                //
-                colorsToggled:false,
-                //
-                userToastMessage:"Disconnected from socket.io server!",
-
-
                 //notification etc
                 notificationMessage : "",
-                //FIXME: no too sure about these
-                scanner:null,//shadowing of "server side" structure
-                pointCloudData :null,
                 
-                fooBar:function(){
-                  console.log("GNApointCloudDataChanged");
-                  this.drawPointCloud( this.scanner.pointCloudData );
+                
+                
+                //pointCloudPointSize:1,
+                //pointCloudTrueColors:false,
+                
+                observe:{
+                  "scanner.display.particleSize":"particleSizeChanged",
+                  "scanner.display.realColors"  :"realColorsChanged"
                 },
-
-                created:function(){
-                },
+                
+                
+                //lifeCycle callbacks
                 attached:function(){
                   this.scanner = this.$.scannerWrapper;
                 },
@@ -188,13 +195,31 @@
                   this.$.foo.toggle();
                 },
                 //attribute change handlers
-                colorsToggledChanged:function(){
-                  //this.pointCloud.material = this.
-                },
                 pointCloudDataChanged:function(){
                   console.log("pointCloudDataChanged in change handler");
                   this.drawPointCloud( this.pointCloudData );
                 },
+                fooBar:function(){
+                  console.log("GNApointCloudDataChanged");
+                  this.drawPointCloud( this.scanner.pointCloudData );
+                },
+                particleSizeChanged:function(){
+                  console.log("particle size changed");
+                  this.pointCloud.material.size = this.scanner.display.particleSize;
+                },
+                realColorsChanged:function(){
+                  console.log("realColorsChanged");
+                  if(this.scanner.display.realColors)
+                  {
+                    this.pointCloud.material.vertexColors= THREE.VertexColors;
+                    this.pointCloud.material.color.setHex(0xffffff);
+                  }else
+                  {
+                    this.pointCloud.material.vertexColors= false;
+                    this.pointCloud.material.color.setHex(0xf00);
+                  }
+                },
+                //internal api
                 drawPointCloud:function(data){
                   if(!(data)) return;
                   if(this.pointCloud) this.triDViewer.removeFromScene(this.pointCloud);
@@ -222,8 +247,9 @@
                   geometry.computeVertexNormals();
                   geometry.applyMatrix(new THREE.Matrix4().makeScale( 10, 10, 10 ) );
 
-                  var particleSize = 1;//0.2
-                  var material = new THREE.PointCloudMaterial({ size: particleSize,vertexColors: THREE.VertexColors});
+                  var vertexColors = THREE.VertexColors;
+                  if(!this.scanner.display.realColors) vertexColors = false;
+                  var material = new THREE.PointCloudMaterial({ size: this.scanner.display.particleSize,vertexColors:vertexColors});
                   var particles = new THREE.PointCloud( geometry, material );
                   
                   this.triDViewer.addToScene( particles );
@@ -246,9 +272,25 @@
                     this.scanTime = 0;
                 },
                 save:function(){
-                  console.log("saving stuff");
-                  this.scanner.save();
+                  var self = this;
+                  var saver = this.$.fileSaverDialog;
+                  saver.addEventListener("change", function(evt) {
+                    console.log("saving to", this.value);
+                    self.scanner.saveScan( this.value );
+                  }, false);
+                  saver.click();
                 },
+                load:function(){
+                  var self = this;
+                  var loader = this.$.fileLoaderDialog;
+                  loader.addEventListener("change", function(evt) {
+                    console.log("loading from",this.value);
+                    self.scanner.loadScan( this.value );
+                  }, false);
+                  loader.click();
+                  
+                }
+                
             });
         </script>
      </polymer-element>
