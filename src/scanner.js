@@ -41,7 +41,6 @@ var Scanner =function(){
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
 
-  this.latestScan = null; //store the last scan in memory ?
   this.currentScan =null;
 }
 
@@ -62,15 +61,18 @@ Scanner.prototype.init=function*(){
   yield this.fetchPorts();
 
   var readFile  = Q.denodeify(fs.readFile);
-  var defaultFile = this.outputFolder+"pointCloud.dat";
-  if(this.autoReload && fs.existsSync(defaultFile))
+  var lastScanPath = config.lastScanPath;
+  console.log("lastScanPath",lastScanPath);
+  
+  //var defaultFile = this.outputFolder+"pointCloud.dat";
+  if(this.autoReload && lastScanPath && fs.existsSync(lastScanPath))
   {
-    var lastScan = JSON.parse( yield readFile(defaultFile) );
-    this.latestScan = lastScan ;
+    var lastScan = JSON.parse( yield readFile(lastScanPath) );
+    this.currentScan = lastScan;
   }
-  if(!fs.existsSync(this.outputFolder)){
+  /*if(!fs.existsSync(this.outputFolder)){
     fs.mkdirSync(this.outputFolder, 0766);
-  }
+  }*/
 }
 
 Scanner.prototype.fetchPorts=function*(){
@@ -189,7 +191,6 @@ Scanner.prototype.detectLaser = function *(debug, threshold)
 
     log.info("frames grabbed, now detecting...");
     var p = this.vision.detectLaserLine( imNoLaser, imLaser, threshold ,debug);
-    //console.log("got result", p);
     if(!(p)){return false;}
     this.laser.pointPosition = p;
     return true;
@@ -204,13 +205,13 @@ dummy: do not actually do a scan, use pre-existing images instead
 */
 Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 {
+  
    log.info("started scanning in ",stepDegrees,"increments, totalslices:",360/stepDegrees);
    var writeFile = Q.denodeify(fs.writeFile);
    var yDpi = yDpi;
    var fullModel = {positions:[],colors:[]};
    var totalPoints =0;
    this.currentScan = fullModel;
-    
 
    //detect laser line
    var laserDetected = yield this.detectLaser();
@@ -253,7 +254,6 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
         if(stream){
           //stream.emit('chunkStreamed',{data:model});
           stream.emit('chunkStreamed',{data:model});
-          console.log("bla", model.positions.length);
         }
           totalPoints+= model.positions.length;
           fullModel.positions = fullModel.positions.concat( model.positions);
@@ -271,7 +271,6 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
     yield this.turnTable.toggle(false);
     yield this.laser.turnOff();
 
-    this.latestScan=fullModel;
     log.info("done scanning: result model: "+totalPoints+" points");
     if(this.saveScan) yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
     return fullModel;
@@ -309,9 +308,18 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
       imLaser   = this.vision.lastLaserOn;
     }
 
-
     var linesImg = imNoLaser.copy();
     var debugImg = this.vision.extractLaserLine(imNoLaser, imLaser);
+    
+    
+    //now do the 3d points extraction
+    var model={positions:[],colors:[]};
+    var yDpi = 1;
+    this.turnTable.rotation.y = 0;
+    this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0, this.laser, this.camera, this.turnTable, model);
+    console.log("model points", model.points);
+    this.currentScan = model;
+    
 
     linesImg.resize(320,240);
     debugImg.resize(320,240);
@@ -321,21 +329,69 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
     var buffDebuger = debugImg.toBuffer();
 
     log.info("calibration processing done, returning data");
-    return {lines:buffNoLaser, debug:buffDebuger};
+    return {lines:buffNoLaser, debug:buffDebuger, pointCloudData:model};
 }
 
-Scanner.prototype.saveScan = function *(options)
+Scanner.prototype.saveScan = function *(fileName, options)
 {
-  if(!this.latestScan) return;
+  if(!this.currentScan) return;
   var writeFile = Q.denodeify(fs.writeFile);
-  yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.latestScan));
+  //yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.currentScan));
+  
+  //save as ply TODO: this is a prototype, move this to serializer + writer
+  //var fileName = "pointCloud.ply";
+  var format = "ascii"; //can be ascii, binary big & little endian http://en.wikipedia.org/wiki/PLY_(file_format)
+  var formatVersion = "1.0";
+  var pointsCount = 0;
+  
+  pointsCount = this.currentScan.positions.length;
+  /*var stream = fs.createWriteStream(this.outputFolder+fileName);
+  stream.once('open', function(fd) {
+    stream.write("My first row\n");
+    stream.write("My second row\n");
+    stream.end();
+  });*/
+  var output = [];
+  output.push("ply");
+  output.push(format+" " + formatVersion);
+  output.push("element vertex " + pointsCount);
+  output.push("property float x");
+  output.push("property float y");
+  output.push("property float z");
+  
+  output.push("property float diffuse_red");
+  output.push("property float diffuse_green");
+  output.push("property float diffuse_blue");
+  
+  output.push("end_header");
+  
+  var pos = this.currentScan.positions;
+  var cols = this.currentScan.colors;
+  
+  console.log("foo");
+  for(var i=0;i<pointsCount;i+=3)
+  {
+    output.push(pos[i]+" "+pos[i+1]+" "+pos[i+2]+" "+ cols[i]+" "+cols[i+1]+" "+cols[i+2]);
+  }
+  output = output.join("\n");
+  yield writeFile(fileName,output);
+}
+
+Scanner.prototype.loadScan = function *(fileName, options){
+  var readFile  = Q.denodeify(fs.readFile);
+  var lastScan = JSON.parse( yield readFile(fileName) );
+  this.currentScan = lastScan ;
 }
 
 Scanner.prototype.saveSettings = function *(options)
 {
   var writeFile = Q.denodeify(fs.writeFile);
-  //yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.latestScan));
+  //TODO: how to
+  //this.outputFolder+"pointCloud.dat"
+  //yield writeFile("./config.json");//,JSON.stringify(this.latestScan));
 }
+
+
 
 
 module.exports = Scanner;
