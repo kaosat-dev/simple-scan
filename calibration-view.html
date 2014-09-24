@@ -19,16 +19,22 @@
          
         <section id="calibControls" layout-horizontal center-justified>
           <div center horizontal layout>
-            <paper-icon-button fill id="doCalib" label="Calibrate" icon="image:auto-fix" on-tap="{{calibrate}}" disabled?="{{!scanner2.connected}}"></paper-icon-button>
+            <paper-icon-button fill id="doCalib" label="Calibrate" icon="image:auto-fix" on-tap="{{calibrate}}" disabled?="{{!scanner.connected || scanner.calibrating || scanner.scanning}}"></paper-icon-button>
             <div flex>Capture new image</div>
             <paper-checkbox id="newCaptureToggler" class="blue" alt="newCaptureToggler" checked="{{calibNewCaptureToggled}}"></paper-checkbox>
           </div>
 
 
             <section>
+              <h4>Camera</h4>
+              <div center horizontal layout class="control">
+                <div>Frames to flush</div><paper-slider value="{{scanner.camera.framesToFlush}}" max="30" editable></paper-slider>
+              </div>
+            </section>
+            <section>
               <h4>Line detect</h4>
                 <div center horizontal layout class="control">
-                  <div>Blur kernel</div><paper-slider value="15" max="30" editable></paper-slider>
+                  <div>Blur kernel</div><paper-slider value="{{blurKernel}}" max="30" editable></paper-slider>
                 </div>
                 <div center horizontal layout class="control">
                   <div>Threshold</div><paper-slider value="{{scanner.vision.lineExtractionParams.threshold}}" max="255" editable></paper-slider>
@@ -74,7 +80,74 @@
   </template>
   <script>
     Polymer("calibration-view", {
+      scanner:null,
+      calibImageBase:null,
+      calibImageDebug:null,
       calibView:null,
+      calibNewCaptureToggled:false,
+      blurKernel:15,//this needs to be done a bit differently, since we need to creat an array base on this value
+      
+      observe:{
+        "scanner.calibImageBase" :"calibImageBaseChanged",
+        "scanner.calibImageDebug":"calibImageDebugChanged",
+      },
+      
+      //Attribute change handlers
+      calibViewChanged:function(){
+        console.log("calibView",this.calibView);
+        var calibView = this.calibView;
+      },
+      calibImageDebugChanged:function(){
+        console.log("calibImageDebugChanged");
+        var debugImg = this.scanner.calibImageDebug;
+        
+        var canvas2 = this.$.calibCamDebug ;
+        var ctx2 = canvas2.getContext('2d');
+
+        var uint8Arr = new Uint8Array(debugImg);//.buffer);
+        var str = String.fromCharCode.apply(null, uint8Arr);
+        var base64String = btoa(str);
+
+        var img = new Image();
+        img.onload = function() {
+            var x = 0;
+            var y = 0;
+            ctx2.drawImage(this, x, y);
+        }
+        img.src = 'data:image/png;base64,' + base64String;
+      },
+      calibImageBaseChanged:function(){
+        console.log("calibImageBaseChanged");
+        var rawImg = this.scanner.calibImageBase;
+        //draw main image with calibration lines
+        var canvas = this.$.calibCam ;
+        var ctx = canvas.getContext('2d');
+
+        var uint8Arr = new Uint8Array(rawImg);//.buffer);
+        var str = String.fromCharCode.apply(null, uint8Arr);
+        var base64String = btoa(str);
+
+        var img = new Image();
+        img.onload = function() {
+            var x = 0;
+            var y = 0;
+            ctx.drawImage(this, x, y);
+        }
+        img.src = 'data:image/png;base64,' + base64String;
+      },
+      blurKernelChanged:function(){
+        this.scanner.vision.lineExtractionParams.blurKernel = [this.blurKernel,this.blurKernel];
+      },
+      //API
+      calibrate:function(){
+        console.log("starting calibration");
+        //console.log(this.scanner.vision);
+        this.scanner.calibrate(this.calibNewCaptureToggled,this.scanner.vision.lineExtractionParams);
+        if(this.calibView == -1 || this.calibView == null)
+        {
+          this.calibView = 0;
+        }
+      }
     
     });
   </script>
