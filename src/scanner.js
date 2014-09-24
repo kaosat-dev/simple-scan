@@ -19,9 +19,10 @@ var config = require("./config");
 /////////
 
 var Scanner =function(){
-  this.connected = false;
-  this.scanning = false;
+  this.connected   = false;
+  this.scanning    = false;
   this.calibrating = false;
+  this.autoReload  = true;
   this.outputFolder = "./scanData/";
   
 
@@ -41,7 +42,7 @@ var Scanner =function(){
   this.turnTable.sendCommand = this.sendCommand;
 
   this.latestScan = null; //store the last scan in memory ?
-
+  this.currentScan =null;
 }
 
 Scanner.prototype={};
@@ -62,7 +63,7 @@ Scanner.prototype.init=function*(){
 
   var readFile  = Q.denodeify(fs.readFile);
   var defaultFile = this.outputFolder+"pointCloud.dat";
-  if(fs.existsSync(defaultFile))
+  if(this.autoReload && fs.existsSync(defaultFile))
   {
     var lastScan = JSON.parse( yield readFile(defaultFile) );
     this.latestScan = lastScan ;
@@ -208,6 +209,7 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
    var yDpi = yDpi;
    var fullModel = {positions:[],colors:[]};
    var totalPoints =0;
+   this.currentScan = fullModel;
     
 
    //detect laser line
@@ -327,6 +329,12 @@ Scanner.prototype.saveScan = function *(options)
   if(!this.latestScan) return;
   var writeFile = Q.denodeify(fs.writeFile);
   yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.latestScan));
+}
+
+Scanner.prototype.saveSettings = function *(options)
+{
+  var writeFile = Q.denodeify(fs.writeFile);
+  //yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.latestScan));
 }
 
 
