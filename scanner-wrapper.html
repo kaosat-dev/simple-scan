@@ -26,18 +26,68 @@
     calibImageDebug:null,
     pointCloudData:null,
     
+    autoReload:true,//auto reload last project/scan
+    
+    camera:null,
+    vision:null,
+    
+    scanQual:45,
+    scanQualVert:2,
+    
+    scanQualityMap:{
+      "ultra-high":{angle:0.01,yDpi:1},
+      "high":{angle:0.1,yDpi:1},
+      "medium":{angle:1,yDpi:1},
+      "low":{angle:5,yDpi:2},
+      "ultra-low":{angle:45,yDpi:2}
+    },
+
+    observe:{
+      "camera.framesToFlush":"cameraAttributeChanged",
+      "vision.lineExtractionParams"       :"visionAttributeChanged"
+    },
+
+    
     //for socket io , not sure I will keep them
     outEventName: "message",
     inMessage: "",
     outMessage: "",
     messages: [],
     clients: {},    
-    
+  
+    cameraAttributeChanged:function(){
+      console.log("camera changed");
+      for(var key in this.camera)
+      {
+        if(this.isNodeWebkit){
+          this.scanner.camera[key] = this.camera[key];
+        }
+      }
+    },
+    visionAttributeChanged:function(){
+      console.log("vision changed");
+    },
+
     created:function(){
       var isNodeWebkit = (typeof process == "object");
       this.isNodeWebkit = isNodeWebkit;
       var self = this;
       var co = require('co');
+      
+      
+      //TODO: how to handle this
+      self.camera = {};
+      self.camera.framesToFlush = 25;
+      self.vision = {};
+      self.vision.lineExtractionParams = {
+           gaussBlurKernel : [15,15],
+           threshold       : 22,
+           erosion         : 2,
+           dilation        : 5,
+           outThreshold    : 250,
+           maxDist         : 40
+        };
+      
       
       if(isNodeWebkit){
         var Scanner = require("./src/scanner");
@@ -47,10 +97,15 @@
         co(function* (){
           yield scanner.init();
           if(this.autoConnect) yield scanner.connect();
-          self.connected   = scanner.connected;
-          self.serialPorts = scanner.serialPorts;
+          self.connected      = scanner.connected;
+          self.serialPorts    = scanner.serialPorts;
           self.pointCloudData = scanner.latestScan;
-          console.log("serialPorts", self.serialPorts);
+          self.autoReload     = scanner.autoReload;
+          
+          //shadow the "server" structure/params
+          self.vision.lineExtractionParams = scanner.vision.lineExtractionParams;
+          self.camera.framesToFlush       = scanner.camera.framesToFlush;
+          
         })();
         
         
@@ -89,10 +144,16 @@
     },
 
     scan:function(options){
-      var option = options || {};
-      options.stepDegrees = options.stepDegrees || 45;
-      options.vDpi = options.vDpi || 10;
-      options.debug = options.debug || false;
+      var options = options || {};
+      /*options.stepDegrees = options.stepDegrees || this.scanQual;
+      options.vDpi = options.vDpi || this.scanQualVert;
+      options.debug = options.debug || false;*/
+      options.stepDegrees  = this.scanQual;
+      options.vDpi =  this.scanQualVert;
+      options.debug =  false;
+      
+      
+      //{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}
       
       var self = this;
       
@@ -101,8 +162,8 @@
       
       socket.on('chunkStreamed', function (data) {
           console.log("event has occured");//,data);
-          self.pointCloudData = null;
-          self.pointCloudData = data.data;
+          //self.pointCloudData = null;
+          self.pointCloudData = self.scanner.currentScan;//data.data;
           //console.log("foo", self.pointCloudData);
           self.fire("modelchanged");
       });
@@ -196,7 +257,14 @@
       co(function* (){
         yield scanner.saveScan();
       })();
+    },
     
+    saveSettings:function(){
+      var scanner = this.scanner;
+      var co = require('co');
+      co(function* (){
+        yield scanner.saveSettings();
+      })();
     },
     //OTHER STUFF : TODO: cleanup
     wsConnect:function(){
