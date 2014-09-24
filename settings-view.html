@@ -5,11 +5,18 @@
       <section>
         <h3>Quality</h3>
         <div center horizontal layout>
-          <paper-input  id="angleToQuality" floatingLabel label="angleQuality (lower == better)" type="number" error="Input is not a number!"
-            value={{scanQual}}>
+        <paper-dropdown-menu selected="{{quality}}" valueattr="label" >
+              <template repeat="{{item,i in scanner.scanQualityMap | getKeys}}">
+                <paper-item value="calibCam" label="{{item}}"></paper-item>
+              </template>
+          </paper-dropdown-menu>
+        </div>
+        <div center horizontal layout>
+          <paper-input  id="angleToQuality" floatingLabel label="angleQuality (lower == better)"  error="Input is not a number!"
+            value={{scanner.scanQual}} validate="^[0-9]*[.][0-9]+">
           </paper-input>  
-          <paper-input  id="vertDpi" floatingLabel label="vertQuality (lower == better)" type="number" error="Input is not a number!"
-              value={{scanQualVert}}>
+          <paper-input  id="vertDpi" floatingLabel label="vertQuality (lower == better)" type="number" error="Input is not a integer!"
+              value={{scanner.scanQualVert}}>
           </paper-input>  
         </div>
       </section>             
@@ -39,7 +46,7 @@
               value="{{laserAngle}}°"></paper-input> 
             </div>
             <div>
-              <paper-icon-button fill id="detectLaser" label="Detect laser" icon="image:auto-fix" on-tap="{{detectLaser}}" disabled?="{{!scanner2.connected}}"></paper-icon-button>
+              <paper-icon-button fill id="detectLaser" label="Detect laser" icon="image:auto-fix" on-tap="{{detectLaser}}" disabled?="{{!scanner.connected}}"></paper-icon-button>
               <template if="{{laserDetected}}"> <div style="background:red">Laser Detected</div></template>
             </div>
           </section>
@@ -93,7 +100,68 @@
      </template>
   <script>
     Polymer("settings-view", {
-    
+      scanner: null,
+      
+      laserToggled:false,
+      laserDetected:false,
+      stepperToggled:false, 
+      
+      laserAngle:0,
+      stepsToRotate:10,
+      angleToRotate:10,
+      _stepsPerRevo:400,//how many steps per full rotation
+      
+      quality: null,
+      
+      //attribute change handlers
+      laserToggledChanged:function()
+      {
+          console.log("laser is", this.laserToggled);
+          this.scanner.toggleLaser(this.laserToggled);
+      },
+      stepperToggledChanged:function()
+      {
+          console.log("stepper is", this.stepperToggled);
+          this.scanner.toggleTurnTable(this.stepperToggled);
+      },
+      stepsToRotateChanged:function(){
+          this.sendMessage({event:"stepsToRotate",data:this.stepsToRotate});
+          //update angle accordingly
+          var converted = this.stepsToRotate/this._stepsPerRevo*360; //stepsPerRevo == 360
+          if(converted != this.angleToRotate) this.angleToRotate = converted;
+      },
+      angleToRotateChanged:function(){
+          this.sendMessage({event:"angleToRotate",data:this.angleToRotate});
+          var converted = this.angleToRotate*this._stepsPerRevo/360; 
+          if(converted != this.stepsToRotate) this.stepsToRotate = converted;
+      },
+      qualityChanged:function(){
+        console.log("qualityCHanged", this.quality);
+        var curQuality = this.scanner.scanQualityMap[this.quality];
+        this.scanner.scanQual = curQuality.angle;
+        this.scanner.scanQualVert = curQuality.yDpi;
+      },
+      //API
+      rotateCW:function()
+      {
+        this.scanner.rotateTurnTable(this.angleToRotate);
+      },
+      rotateCCW:function()
+      {
+        this.scanner.rotateTurnTable(-this.angleToRotate);
+      },
+      //TODO: move this to calibration ???
+      detectLaser:function(){
+          console.log("detectLaser");
+          this.laserDetected=false;
+          this.scanner.detectLaser();
+      },
+      //helpers
+      getKeys:function(o){
+        if(!o) return [];
+        console.log("o",o);
+        return Object.keys(o);
+      }
     });
   </script>
 </polymer-element>  
