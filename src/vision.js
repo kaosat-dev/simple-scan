@@ -9,9 +9,6 @@ var config = require("./config");
 //////////////////////////
 var Vision = function()
 {
-  this.camWidth = 640;
-  this.camHeight= 480; 
-
   //TODO: make these configurable
   this.origin = new cv.Point(0,0.75);
   this.frameWidth = 26.6;
@@ -26,6 +23,9 @@ var Vision = function()
      outThreshold    : 250,
      maxDist         : 40
   }
+  
+  this.upperFrameLimit = config.framing.upperLimit;
+  this.lowerFrameLimit = config.framing.lowerLimit;
 
   //storage for calibration, to avoid lots of cv.captures
   this.lastLaserOn = null;
@@ -282,10 +282,10 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVe
   //bwImage.convertGrayscale(); 
   //bwImage.save('laserLineBW.png');
   
-  //TODO: move these to config
-  var upperFrameLimit = 0;
-  var lowerFrameLimit = 30;
-  var laserOffset = 90;
+  var upperFrameLimit = this.upperFrameLimit; 
+  var lowerFrameLimit = this.lowerFrameLimit; 
+  var laserOffset = laser.analyzingOffset;
+  
   var foundPoints = 0;
     log.debug("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
     //now iterating from top to bottom over bwLaserLine frame
@@ -369,7 +369,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVe
 
 
                 log.debug("point.y",point.y+">"+(lowerLimit+0.5),'hypotenuse',hypotenuse+"<7");// 
-                if(point.y>lowerLimit+0.5&& hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
+                if(point.y>lowerLimit+0.5 && hypotenuse < 7){ //eliminate points from the grounds, that are not part of the model
                     //log.info("adding new point to thingamagic",point);
                     log.warn(turnTable.rotation);
                     model.positions.push( point.x, point.y, point.z);

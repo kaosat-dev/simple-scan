@@ -1,6 +1,7 @@
 var Q = require('q');
 var sleep = require('./sleep');
 var cv = require('opencv');
+var config = require("./config");
 
 var Camera = function(videoDeviceIndex)
 {
@@ -20,6 +21,8 @@ var Camera = function(videoDeviceIndex)
   //FIXME : workaround for mem leak
   this._capturedFrames = 0;
   this.videoDeviceIndex = videoDeviceIndex || 0;
+  
+  this.frameWidth = 26.6;
   this.framesToFlush = 25;//workaround for camera buffers not emptying
 }
 

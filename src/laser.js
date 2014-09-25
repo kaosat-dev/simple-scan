@@ -1,5 +1,6 @@
 var Q = require('q');
 var sleep = require('./sleep');
+var config = require("./config");
 
 var Laser = function(serial)
 {
@@ -7,6 +8,7 @@ var Laser = function(serial)
   this.position = {x:14.0,y:6.4,z:28.8};
   this.rotation = {x:0,y:0,z:0};
   this.pointPosition = {x:14.0, y:0.0,z: 0.0};
+  this.analyzingOffset = config.laser.analyzingOffset;
 
   this.serial = serial;
   this.isOn = false;

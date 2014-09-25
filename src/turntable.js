@@ -71,6 +71,7 @@ TurnTable.prototype.rotateByDegrees=function*(degrees)
 
 TurnTable.prototype.rotateBySteps=function*(steps)
 {
+  //FIXME: number of steps cannot go lower than 1
   var size = parseInt(steps/256*2);
   var c = new Array(size);
   var s = steps;
