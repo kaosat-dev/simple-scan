@@ -23,10 +23,31 @@
             <div flex>Capture new image</div>
             <paper-checkbox id="newCaptureToggler" class="blue" alt="newCaptureToggler" checked="{{calibNewCaptureToggled}}"></paper-checkbox>
           </div>
+          
+          <div center horizontal layout style="white-space:pre-wrap">
+            Important notes:
+              - yellow lines are drawn at the center of the frame
+              - green lines represent the limits of the analysis (upper & lower frame limit)
+              - blue line is the artificial "horizon" : it SHOULD touch the upper border of the turntable
+            </div>
+          
+        <section>
+          <h4>Camera</h4>
+          <div center horizontal layout class="control">
+            <div>Frames to flush</div><paper-slider value="{{scanner.camera.framesToFlush}}" max="30" editable></paper-slider>
+          </div>
+        </section>
+            
             <section>
-              <h4>Camera</h4>
+              <h4>Vision</h4>
               <div center horizontal layout class="control">
-                <div>Frames to flush</div><paper-slider value="{{scanner.camera.framesToFlush}}" max="30" editable></paper-slider>
+                <div>Upper Frame limit</div><paper-slider value="{{scanner.vision.upperFrameLimit}}" max="200" editable></paper-slider>
+              </div>
+              <div center horizontal layout class="control">
+                <div>Lower Frame limit</div><paper-slider value="{{scanner.vision.lowerFrameLimit}}" max="200" editable></paper-slider>
+              </div>
+              <div center horizontal layout class="control">
+                <div>Horizon line (% of total)</div><paper-slider value="{{scanner.vision.origin.y}}" step="0.05" min="0" max="1" editable></paper-slider>
               </div>
             </section>
             <section>

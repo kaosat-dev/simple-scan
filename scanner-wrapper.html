@@ -45,9 +45,12 @@
 
     observe:{
       "camera.framesToFlush":"cameraAttributeChanged",
-      "vision.lineExtractionParams"       :"visionAttributeChanged"
+      "vision.lineExtractionParams"       :"visionAttributeChanged",
+      "vision.upperFrameLimit"            :"visionAttributeChanged",
+      "vision.lowerFrameLimit"            :"visionAttributeChanged",
+      "vision.origin.y"                   :"visionAttributeChanged",
     },
-
+    
     
     //for socket io , not sure I will keep them
     outEventName: "message",
@@ -67,6 +70,12 @@
     },
     visionAttributeChanged:function(){
       console.log("vision changed");
+      for(var key in this.vision)
+      {
+        if(this.isNodeWebkit){
+          this.scanner.vision[key] = this.vision[key];
+        }
+      }
     },
 
     created:function(){
@@ -79,7 +88,14 @@
       //TODO: how to handle this
       self.camera = {};
       self.camera.framesToFlush = 25;
+      self.camera.position = {x:0,y:5.57,z:30.9};
+      self.camera.frameWidth = 26.6;
+      
       self.vision = {};
+      self.vision.upperFrameLimit=0;
+      self.vision.lowerFrameLimit=30;
+      self.vision.origin={};
+      self.vision.origin.y = 0.75; //actually a percentage;
       self.vision.lineExtractionParams = {
            gaussBlurKernel : [15,15],
            threshold       : 22,
@@ -88,6 +104,7 @@
            outThreshold    : 250,
            maxDist         : 40
         };
+        
       self.display = {};
       self.display.particleSize = 1;
       self.display.realColors = true;
@@ -222,7 +239,6 @@
           self.pointCloudData = calibData.pointCloudData;
           
           self.fire("modelchanged");
-          console.log("got calibration data");
         })();
       }else{
           this.sendMessage({event:"calibrate", data:{doCapture:this.calibNewCaptureToggled, options:          this.scanner.vision.lineExtractionParams , debug:this.debugToggled}});
