@@ -23,8 +23,10 @@ var Scanner =function(){
   this.scanning    = false;
   this.calibrating = false;
   this.autoReload  = true;
-  this.outputFolder = "./scanData/";
   
+  this.laserDetectThreshold = 40;
+  this.outputFolder         = "./scanData/";
+  this.currentScan          = null;
 
   this.serialPorts = [];
   this.serial = new SerialPort("/dev/ttyACM0", {
@@ -37,11 +39,8 @@ var Scanner =function(){
   this.camera    = new Camera(1);
   this.vision    = new Vision();
   
-  //FIXME:hack
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
-
-  this.currentScan =null;
 }
 
 Scanner.prototype={};
@@ -165,29 +164,36 @@ Scanner.prototype.sendCommand=function(command)
 }
 
 //detect laser line
-Scanner.prototype.detectLaser = function *(debug, threshold)
+Scanner.prototype.detectLaser = function *(threshold, imNoLaser, imLaser, debug)
 {
     log.info("attempting laser detection");
-    var threshold = threshold || 40;
+    var threshold = threshold || this.laserDetectThreshold ;
     
-    //make sure laser is off
-    yield this.laser.turnOff();
-    var imNoLaser = yield this.camera.read();
-    log.info("got camera image with no laser");
-    if(debug) imNoLaser.save(this.outputFolder+'calib_camNoLaser.png');
+    //only do this if a pre-existing image is not provided
+    if(!imNoLaser)
+    {
+      //make sure laser is off
+      yield this.laser.turnOff();
+      var imNoLaser = yield this.camera.read();
+      log.info("got camera image with no laser");
+      if(debug) imNoLaser.save(this.outputFolder+'calib_camNoLaser.png');
+    }
 
-    //make sure laser is on
-    yield this.laser.turnOn();
-    var imLaser = yield this.camera.read();
-    log.info("got camera image with laser");
-    if(debug) imLaser.save(this.outputFolder+'calib_camLaser.png');
+    if(!imLaser)
+    {
+      //make sure laser is on
+      yield this.laser.turnOn();
+      var imLaser = yield this.camera.read();
+      log.info("got camera image with laser");
+      if(debug) imLaser.save(this.outputFolder+'calib_camLaser.png');
+    
+      //imNoLaser.resize(1280,960);
+      //imLaser.resize(1280,960);
 
-    //imNoLaser.resize(1280,960);
-    //imLaser.resize(1280,960);
-
-    //cleanup 
-    //make sure laser is off
-    yield this.laser.turnOff();
+      //cleanup 
+      //make sure laser is off
+      yield this.laser.turnOff();
+    }
 
     log.info("frames grabbed, now detecting...");
     var p = this.vision.detectLaserLine( imNoLaser, imLaser, threshold ,debug);
@@ -208,7 +214,7 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
   
    log.info("started scanning in ",stepDegrees,"increments, totalslices:",360/stepDegrees);
    var writeFile = Q.denodeify(fs.writeFile);
-   var yDpi = yDpi;
+   var yDpi = yDpi || 1;
    var fullModel = {positions:[],colors:[]};
    var totalPoints =0;
    this.currentScan = fullModel;
@@ -313,6 +319,7 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
     
     
     //now do the 3d points extraction
+    var laserDetected = yield this.detectLaser(null, imNoLaser, imLaser);
     var model={positions:[],colors:[]};
     var yDpi = 1;
     this.turnTable.rotation.y = 0;
@@ -368,7 +375,6 @@ Scanner.prototype.saveScan = function *(fileName, options)
   var pos = this.currentScan.positions;
   var cols = this.currentScan.colors;
   
-  console.log("foo");
   for(var i=0;i<pointsCount;i+=3)
   {
     output.push(pos[i]+" "+pos[i+1]+" "+pos[i+2]+" "+ cols[i]+" "+cols[i+1]+" "+cols[i+2]);
@@ -379,7 +385,23 @@ Scanner.prototype.saveScan = function *(fileName, options)
 
 Scanner.prototype.loadScan = function *(fileName, options){
   var readFile  = Q.denodeify(fs.readFile);
-  var lastScan = JSON.parse( yield readFile(fileName) );
+  var extName = path.extname(fileName);
+  
+  switch(extName)
+  {
+    case 'dat':
+      var lastScan = JSON.parse( yield readFile(fileName) );
+    break;
+    case 'ply':
+      console.log("NOT IMPLEMENTED");
+    break;
+    default:
+      throw Error("file has no extension, cannot load");
+    break;
+  
+  }
+  
+  
   this.currentScan = lastScan ;
 }
 
