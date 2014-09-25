@@ -285,6 +285,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVe
   var upperFrameLimit = this.upperFrameLimit; 
   var lowerFrameLimit = this.lowerFrameLimit; 
   var laserOffset = laser.analyzingOffset;
+  console.log("upperFrameLimit",upperFrameLimit,"lowerFrameLimit",lowerFrameLimit);
   
   var foundPoints = 0;
     log.debug("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
@@ -394,13 +395,23 @@ Vision.prototype.drawHelperLines = function( im )
   var WHITE = [255, 255, 255]; //B, G, R
   var RED   = [0, 0, 255]; //B, G, R
   var BLUE   = [255, 0, 0]; //B, G, R
+  var YELLOW = [0,255,255];
   //draw calibration lines
+  
   //horizontal, center
-  im.line([0,im.height()/2],[im.width(),im.height()/2],GREEN);
+  im.line([0,im.height()/2],[im.width(),im.height()/2],YELLOW);
+  
   //vertical, center
-  im.line([im.width()/2,0],[im.width()/2,im.height()],GREEN);
-  //horizontal turntable center
-  im.line([0,im.height()/1.33],[im.width(),im.height()/1.33],WHITE);
+  im.line([im.width()/2,0],[im.width()/2,im.height()],YELLOW);
+  
+  //line showing the upper limit where analysis starts
+  im.line([0,im.height()-this.lowerFrameLimit], [im.width(),im.height()-this.lowerFrameLimit] ,GREEN );
+  
+  //line showing the lower limit where analysis starts
+  im.line([0,this.upperFrameLimit], [im.width(),this.upperFrameLimit] ,GREEN );
+  
+  //horizon
+  im.line([0,im.height()*this.origin.y],[im.width(),im.height()*this.origin.y],BLUE);
 }
 
 //convert our custom point to openCV point
