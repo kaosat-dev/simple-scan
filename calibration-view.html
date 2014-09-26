@@ -113,11 +113,10 @@
       
       //Attribute change handlers
       calibViewChanged:function(){
-        console.log("calibView",this.calibView);
         var calibView = this.calibView;
       },
       calibImageDebugChanged:function(){
-        console.log("calibImageDebugChanged");
+        //console.log("calibImageDebugChanged");
         var debugImg = this.scanner.calibImageDebug;
         
         var canvas2 = this.$.calibCamDebug ;
@@ -136,7 +135,7 @@
         img.src = 'data:image/png;base64,' + base64String;
       },
       calibImageBaseChanged:function(){
-        console.log("calibImageBaseChanged");
+        //console.log("calibImageBaseChanged");
         var rawImg = this.scanner.calibImageBase;
         //draw main image with calibration lines
         var canvas = this.$.calibCam ;
@@ -159,8 +158,7 @@
       },
       //API
       calibrate:function(){
-        console.log("starting calibration");
-        //console.log(this.scanner.vision);
+        //console.log("starting calibration");
         this.scanner.calibrate(this.calibNewCaptureToggled,this.scanner.vision.lineExtractionParams);
         if(this.calibView == -1 || this.calibView == null)
         {
