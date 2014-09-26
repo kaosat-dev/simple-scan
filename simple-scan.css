@@ -50,6 +50,11 @@ height: 20px;
   overflow:hidden;
 }
 
+.success{
+  color:#1CB9EB;
+  font-weight: bold;
+}
+
 calibration-view{
   height: 95%;
   overflow-y: scroll;
@@ -60,7 +65,7 @@ calibration-view{
 
 settings-view{
   height: 95%;
-  overflow:hidden;
+  overflow-y:scroll;
   background: white;
   padding: 10px;
   opacity:0;
@@ -73,7 +78,7 @@ settings-view{
 }
 
 
-#serialSelector{
+/*#serialSelector{
 
   color:color: #a8a8a8 !important;
   cursor: auto;
@@ -87,13 +92,12 @@ settings-view{
 #serialSelector /deep/ paper-item{
   height: 22px;
   font-size: 14px;
-}
+}*/
 
-#serialSelector /deep/ paper-item{
-  height: 22px;
-  font-size: 14px;
-}
-
+/*:host /deep/ core-dropdown{
+  top:34px;
+  margin:0;padding:0;
+}*/
 
 
 
@@ -172,7 +176,7 @@ core-dropdown::shadow #menu {
   max-width: 100px;
 }
 
-
+/*Inputs*/
 :host /deep/ paper-input{
   padding: 10px 10px 10px 0;
 }
@@ -186,7 +190,7 @@ paper-input /deep/ #floatedlabel {
 
 }
 
-
+/*checkboxes*/
 :host /deep/ paper-checkbox.blue::shadow #checkbox.checked {
   border-color: #1CB9EB;
 }
@@ -194,7 +198,12 @@ paper-input /deep/ #floatedlabel {
   padding: 10px 10px 10px 0;
 }
 
+/*progress bars*/
+paper-progress::shadow #activeProgress {
+  background-color: #1CB9EB;
+}
 
+/*MENUS*/
 paper-menu-button /deep/ paper-item{
   font-size: 13px;
 }
@@ -205,14 +214,27 @@ paper-menu-button /deep/ span{
 
 paper-menu-button::shadow .paper-menu-button-overlay-bg { border-radius:0px;}
 
+paper-menu-button::shadow core-dropdown{
+  color:red;
+  background:red;
+  top:34px;
+  margin:0!important;padding:0!important;
+}
+
+paper-menu-button /deep/ paper-item{
+  height: 22px;
+  font-size: 14px;
+}
+
 :host /deep/ .paper-menu-button-menu-container {
   overflow: auto;
   max-height: 100%;
   max-width: 100%;
   background:red;
-  height:34px;
+  height:100%;
 }
 
+/*SLIDERS*/
 
 :host /deep/ .green-slider paper-slider::shadow #sliderKnobInner,
 :host /deep/ .green-slider paper-slider::shadow #sliderKnobInner::before,

@@ -7,6 +7,7 @@
 <link rel="import" href="components/core-icons/device-icons.html">
 <link rel="import" href="components/core-icons/hardware-icons.html">
 <link rel="import" href="components/core-icons/image-icons.html">
+<link rel="import" href="components/core-icons/social-icons.html">
 
 
 <link rel="import" href="components/core-pages/core-pages.html">
@@ -23,13 +24,13 @@
 
 <link rel="import" href="components/paper-input/paper-input.html">
 <link rel="import" href="components/paper-checkbox/paper-checkbox.html">
-<link rel="import" href="components/paper-tabs/paper-tabs.html">
 
 <link rel="import" href="components/paper-dialog/paper-dialog-transition.html">
 <link rel="import" href="components/paper-dialog/paper-dialog.html" >
 
 <link rel="import" href="components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="components/paper-slider/paper-slider.html">
+<link rel="import" href="components/paper-progress/paper-progress.html">
 
 <link rel="import" href="components/three-js/three-js.html">
 <link rel="import" href="components/three-js-helpers/axis-helper.html">
@@ -50,9 +51,17 @@
                 <!--<paper-icon-button icon="menu"></paper-icon-button>-->
                 <span flex>Simple-scan</span>
                 <!-- TODO: replace these -->
-                <span flex><template if="{{!scanner.connected}}">Please connect the scanner</template></span>
-                <span flex><template if="{{scanner.scanning}}">Scan in progress...</template></span>
-                <span flex><template if="{{scanTime!=0}}">Scan took {{scanTime/60}} mins </template></span>
+                <span flex>
+                  <template if="{{!scanner.connected}}">Please connect the scanner</template>
+                  <template if="{{scanner.scanning}}">
+                    <span>Scan in progress...   &nbsp&nbsp</span><paper-progress value="{{scanner.scanProgress}}"></paper-progress>
+                  </template>
+                  <template if="{{scanner.scanTime!=0}}">
+                    <span class="success">Success ! Scan took {{scanner.scanTime/60 | round(1, 'floor') }} Min(s) </span>
+                  </template>
+                </span>
+                
+                
 
                 <core-selector selected="0" id="menuItems">
                   <core-tooltip label="Start scan">
@@ -78,11 +87,11 @@
                       <paper-item icon="device:usb" label="{{port.comName}}" disabled?="{{!scanner.connected}}" on-tap="{{connect}}"></paper-item>
                     </template>
                 </paper-menu-button>
-               <paper-menu-button icon="more-vert" halign="right" valign="bottom">
-                  <paper-item icon="drive-keep" label="Menu Item 1"></paper-item>
+               <paper-menu-button class="topDropDown" icon="more-vert" halign="right" valign="bottom" noTransition>
                   <paper-item icon="help"label="Help"></paper-item>
+                  <paper-item icon="social:post-github"label="Fork"></paper-item>
                   <paper-item icon="about"label="About"></paper-item>
-                </paper-menu-button>
+               </paper-menu-button>
 
               </core-toolbar>
               <div class="content" fit>
@@ -136,18 +145,16 @@
             </paper-dialog>
 
             <scanner-wrapper id="scannerWrapper" 
-            pointCloudData="{{pointCloudData}}" on-modelchanged="{{fooBar}}">
+            pointCloudData="{{pointCloudData}}" on-modelchanged="{{pointCloudNeedsUpdate}}">
             </scanner-wrapper>
         </template>
         <script>
             Polymer("simple-scan", {
                 scanner:null,//shadowing of "server side" structure
-                debugToggled  :false,
                 
                 scanData:null,
                 pointCloudData :null,
                 pointCloud:null,
-                scanTime:0,
 
                 //notification etc
                 notificationMessage : "",
@@ -196,19 +203,18 @@
                 },
                 //attribute change handlers
                 pointCloudDataChanged:function(){
-                  console.log("pointCloudDataChanged in change handler");
+                  //console.log("pointCloudDataChanged in change handler");
                   this.drawPointCloud( this.pointCloudData );
                 },
-                fooBar:function(){
-                  console.log("GNApointCloudDataChanged");
+                pointCloudNeedsUpdate:function(){
+                  //console.log("GNApointCloudDataChanged");
                   this.drawPointCloud( this.scanner.pointCloudData );
                 },
                 particleSizeChanged:function(){
-                  console.log("particle size changed");
-                  this.pointCloud.material.size = this.scanner.display.particleSize;
+                  if(this.pointCloud) this.pointCloud.material.size = this.scanner.display.particleSize;
                 },
                 realColorsChanged:function(){
-                  console.log("realColorsChanged");
+                  if(!this.pointCloud) return;
                   if(this.scanner.display.realColors)
                   {
                     this.pointCloud.material.vertexColors= THREE.VertexColors;
@@ -224,11 +230,6 @@
                   if(!(data)) return;
                   if(this.pointCloud) this.triDViewer.removeFromScene(this.pointCloud);
 
-                  //var data = {positions:[0,0,0,10,10,10,30,30,30],colors:[1,0,0,0,0,1,0,1,0]};
-                  /*for(var i = 0; i<data.colors.length;i++)
-                  {
-                    data.colors[i] = 0;
-                  }*/
                   var pos = data.positions;
                   var col = data.colors;
 
@@ -253,7 +254,6 @@
                   var particles = new THREE.PointCloud( geometry, material );
                   
                   this.triDViewer.addToScene( particles );
-                  console.log("HERE", particles);
                   this.pointCloud = particles;
                   
                 },
@@ -268,8 +268,6 @@
 
                     this.notificationMessage = "Scan in progress...";
                     this.scanData = {positions:[],colors:[]};
-                    this._scanStart = new Date().getTime();
-                    this.scanTime = 0;
                 },
                 save:function(){
                   var self = this;
@@ -288,9 +286,23 @@
                     self.scanner.loadScan( this.value );
                   }, false);
                   loader.click();
-                  
+                },
+                //filters:
+                round:function (val, precision, method) {
+                  precision = precision || 0;
+                  var factor = Math.pow(10, precision);
+                  var rounder;
+
+                  if (method == 'ceil') {
+                      rounder = Math.ceil;
+                  } else if (method == 'floor') {
+                      rounder = Math.floor;
+                  } else {
+                      rounder = Math.round;
+                  }
+
+                  return rounder(val * factor) / factor;
                 }
-                
             });
         </script>
      </polymer-element>
