@@ -31,12 +31,10 @@ Camera.prototype={};
 
 Camera.prototype.connect=function()
 {
-  console.log("this.imWidth",this.imWidth,"this.imHeight",this.imHeight);
   this.camera = new cv.VideoCapture(this.videoDeviceIndex);
   this.camera.setWidth(this.imWidth);
   this.camera.setHeight(this.imHeight);
   this.isOn = true;
-  //this.readCamera    = Q.nbind(this.camera.read, this.camera);
 }
 
 

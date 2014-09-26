@@ -87,8 +87,6 @@ Vision.prototype.detectLines = function( imLaser, imNoLaser, threshold, debug)
     var lngSqrt= (x2-x1)*(x2-x1) + (y2-y1)*(y2-y1);
     if(lngSqrt>=curLng) {curLng = lngSqrt; longest=i;}
   }
-  console.log(foundLines);
-  console.log("longest", longest);
   var best = foundLines[longest];
 
   if(!(best)){
@@ -111,7 +109,6 @@ Vision.prototype.detectLaserLine =  function(laserOff, laserOn, threshold, debug
   
   //args : rho:1, theta:PI/180, threshold:80, minLineLength:30, maxLineGap:10 
   var foundLines = houghInput.houghLinesP(1,Math.PI/2,20,50,10);
-  console.log("foundLines",foundLines);
   var best = foundLines.pop();//TODO: it seems as though the found line are already in descending order ??
   
   if(!(best)){
@@ -285,7 +282,6 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVe
   var upperFrameLimit = this.upperFrameLimit; 
   var lowerFrameLimit = this.lowerFrameLimit; 
   var laserOffset = laser.analyzingOffset;
-  console.log("upperFrameLimit",upperFrameLimit,"lowerFrameLimit",lowerFrameLimit);
   
   var foundPoints = 0;
     log.debug("CHECK: upperFrameLimit",upperFrameLimit,"rows",rows,"cols",cols,"max",rows-lowerFrameLimit);
