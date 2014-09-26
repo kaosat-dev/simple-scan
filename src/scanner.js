@@ -27,6 +27,9 @@ var Scanner =function(){
   this.laserDetectThreshold = 40;
   this.outputFolder         = "./scanData/";
   this.currentScan          = null;
+  this.scanTime             =0;
+  this._scanStart= null;
+  this.scanProgress =0;
 
   this.serialPorts = [];
   this.serial = new SerialPort("/dev/ttyACM0", {
@@ -45,14 +48,14 @@ var Scanner =function(){
 
 Scanner.prototype={};
 
-Scanner.prototype.onDisconnected=function*()
+Scanner.prototype.onDisconnected=function()
 {
-  console.log("disconnected from device");
+  log.error("disconnected from device");
 }
 
-Scanner.prototype.onError=function*()
+Scanner.prototype.onError=function()
 {
-  console.log("error in connection to device");
+  log.error("error in connection to device");
 }
 
 Scanner.prototype.init=function*(){
@@ -61,7 +64,6 @@ Scanner.prototype.init=function*(){
 
   var readFile  = Q.denodeify(fs.readFile);
   var lastScanPath = config.lastScanPath;
-  console.log("lastScanPath",lastScanPath);
   
   //var defaultFile = this.outputFolder+"pointCloud.dat";
   if(this.autoReload && lastScanPath && fs.existsSync(lastScanPath))
@@ -211,13 +213,18 @@ dummy: do not actually do a scan, use pre-existing images instead
 */
 Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 {
-  
-   log.info("started scanning in ",stepDegrees,"increments, totalslices:",360/stepDegrees);
+   var scanStepsTotal = 360/stepDegrees;
+   var scanStep = 1/scanStepsTotal*100;
+   
+   log.info("started scanning in ",stepDegrees,"increments, totalslices:",scanStepsTotal);
    var writeFile = Q.denodeify(fs.writeFile);
    var yDpi = yDpi || 1;
    var fullModel = {positions:[],colors:[]};
    var totalPoints =0;
    this.currentScan = fullModel;
+   this._scanStart = new Date().getTime();
+   this.scanTime = 0;
+   this.scanProgress = 0;
 
    //detect laser line
    var laserDetected = yield this.detectLaser();
@@ -271,11 +278,17 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
           log.error("Uh-oh something went wrong");
           log.error(error);
         }
-        log.info("Done slice", i/stepDegrees," out of ", 360/stepDegrees);
+        log.info("Done slice", i/stepDegrees," out of ", scanStepsTotal);
+        this.scanProgress += scanStep;
     }
-    this.scanning = false; //stop scanning
+    
+    this.scanning = false; //stopped scanning
     yield this.turnTable.toggle(false);
     yield this.laser.turnOff();
+    
+    var scanEnd = new Date().getTime();
+    var scanTime = (Math.round(scanEnd-this._scanStart) / 1000);
+    this.scanTime = scanTime;
 
     log.info("done scanning: result model: "+totalPoints+" points");
     if(this.saveScan) yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
@@ -314,7 +327,7 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
       imLaser   = this.vision.lastLaserOn;
     }
 
-    var linesImg = imNoLaser.copy();
+    var linesImg = imLaser.copy();
     var debugImg = this.vision.extractLaserLine(imNoLaser, imLaser);
     
     
@@ -324,7 +337,6 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
     var yDpi = 1;
     this.turnTable.rotation.y = 0;
     this.vision.putPointsFromFrameToCloud(imNoLaser, imLaser, yDpi, 0, this.laser, this.camera, this.turnTable, model);
-    console.log("model points", model.points);
     this.currentScan = model;
     
 
