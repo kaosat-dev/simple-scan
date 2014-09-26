@@ -21,6 +21,7 @@
     connected:false,
     scanning:false,
     calibrating:false,
+    debugging:false,
 
     calibImageBase:null,
     calibImageDebug:null,
@@ -31,6 +32,9 @@
     camera:null,
     vision:null,
     display:null,//NOT SURE ? should we keep visual settings here?
+    
+    scanTime:0,
+    scanProgress:0,
     
     scanQual:45,
     scanQualVert:2,
@@ -122,6 +126,7 @@
           self.serialPorts    = scanner.serialPorts;
           self.pointCloudData = scanner.currentScan;
           self.autoReload     = scanner.autoReload;
+          self.scanProgress   = scanner.scanProgress;
           
           //shadow the "server" structure/params
           self.vision.lineExtractionParams = scanner.vision.lineExtractionParams;
@@ -168,13 +173,9 @@
       var options = options || {};
       options.stepDegrees = options.stepDegrees || this.scanQual;
       options.vDpi = options.vDpi || this.scanQualVert;
-      options.debug = options.debug || false;
-      /*
-      options.stepDegrees  = this.scanQual;
-      options.vDpi =  this.scanQualVert;
-      options.debug =  false;*/
+      options.debug = options.debug || this.debugging;
       //{debug:this.debugToggled,stepDegrees:this.scanQual,vDpi:this.scanQualVert}
-      
+      this.scanProgress = 0;
       var self = this;
       
       var EventEmitter = require("events").EventEmitter;
@@ -185,6 +186,7 @@
           //self.pointCloudData = null;
           self.pointCloudData = self.scanner.currentScan;//data.data;
           //console.log("foo", self.pointCloudData);
+          self.scanProgress = self.scanner.scanProgress;
           self.fire("modelchanged");
       });
       
@@ -199,6 +201,7 @@
           
           self.pointCloudData = null;
           self.pointCloudData = scanData;
+          self.scanTime = scanner.scanTime;
 
           self.scanning = false;
 
@@ -210,13 +213,13 @@
       }
     },
 
-    detectLaser:function(debug){
+    detectLaser:function(){
+      var self = this;
       if(this.isNodeWebkit){
         var scanner = this.scanner;
         var co = require('co');
         co(function* (){
-          var detected= yield scanner.detectLaser(debug);
-          console.log("here");
+          var detected= yield scanner.detectLaser(null, null, null, self.debugging);
         })();
       }else{
         this.sendMessage({event:"detectLaser",data:{debug:this.debugToggled}});//data: canvas.toDataURL("image/jpeg")
@@ -224,9 +227,9 @@
     },
 
     calibrate:function(doCapture, options, debug){
-      var doCapture = doCapture || true;
+      var doCapture = doCapture || false;
       var options = options || {};
-      var debug = debug || false;
+      var debug = debug || this.debugging;
       var self = this; 
        
       if(this.isNodeWebkit){
@@ -355,12 +358,6 @@
       },
       onSIOScanFinished:function(e,detail,sender){
         console.log("scan finished",e.detail.msg.data);
-        this.scanStarted = false;
-
-        var scanEnd = new Date().getTime();
-        var scanTime = (Math.round(scanEnd-this._scanStart) / 1000);
-        console.log("scan took", scanTime,"seconds, ie", (scanTime/60), "minutes");
-        this.scanTime = scanTime;
       },
       onSIOScanChunkStreamed:function(e,detail,sender){
         console.log("scan chunk rcv");
