@@ -219,6 +219,7 @@ paper-menu-button::shadow core-dropdown{
   background:red;
   top:34px;
   margin:0!important;padding:0!important;
+  width: auto!important;
 }
 
 paper-menu-button /deep/ paper-item{

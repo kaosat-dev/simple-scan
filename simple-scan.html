@@ -8,7 +8,7 @@
 <link rel="import" href="components/core-icons/hardware-icons.html">
 <link rel="import" href="components/core-icons/image-icons.html">
 <link rel="import" href="components/core-icons/social-icons.html">
-
+<link rel="import" href="components/core-icons/av-icons.html">
 
 <link rel="import" href="components/core-pages/core-pages.html">
 <link rel="import" href="components/core-header-panel/core-header-panel.html">
@@ -65,7 +65,7 @@
 
                 <core-selector selected="0" id="menuItems">
                   <core-tooltip label="Start scan">
-                    <paper-icon-button icon="image:timelapse" on-tap="{{startScan}}" 
+                    <paper-icon-button icon="rotation-3d" on-tap="{{startScan}}" 
                     disabled?="{{scanner.scanning || (!scanner.connected)}}"></paper-icon-button>
                   </core-tooltip>
                   <core-tooltip label="Calibrate">
@@ -82,16 +82,28 @@
                   </core-tooltip>
                 </core-selector>
                 
-                <paper-menu-button icon="device:usb" id="serialSelector" halign="right" valign="bottom" noTransition>
-                    <template repeat="{{port in scanner.serialPorts}}">
-                      <paper-item icon="device:usb" label="{{port.comName}}" disabled?="{{!scanner.connected}}" on-tap="{{connect}}"></paper-item>
+                <core-tooltip label="Choose serial port">
+                  <paper-menu-button icon="device:usb" id="serialSelector" halign="right" valign="bottom" noTransition>
+                      <template repeat="{{port in scanner.serialPorts}}">
+                        <paper-item icon="device:usb" label="{{port.comName}}" disabled?="{{!scanner.connected}}" on-tap="{{connect}}">
+                        </paper-item>
+                      </template>
+                  </paper-menu-button>
+                </core-tooltip>
+                <!--FIXME: Unuseable, we cannot map device ids to a given server side device
+               <paper-menu-button icon="av:videocam" id="serialSelector" halign="right" valign="bottom" noTransition>
+                    <template repeat="{{cam in scanner.cameras}}">
+                      <paper-item icon="av:videocam" label="{{cam.name}}" disabled?="{{!scanner.connected}}" on-tap="{{connectVideo}}">
+                      </paper-item>
                     </template>
-                </paper-menu-button>
-               <paper-menu-button class="topDropDown" icon="more-vert" halign="right" valign="bottom" noTransition>
-                  <paper-item icon="help"label="Help"></paper-item>
-                  <paper-item icon="social:post-github"label="Fork"></paper-item>
-                  <paper-item icon="about"label="About"></paper-item>
-               </paper-menu-button>
+               </paper-menu-button>-->
+               <core-tooltip label="Various, help etc" position="left">
+                 <paper-menu-button class="topDropDown" icon="more-vert" halign="right" valign="bottom" noTransition>
+                    <paper-item icon="help"label="Help"></paper-item>
+                    <paper-item icon="social:post-github"label="Fork" on-tap="{{toGHPage}}"></paper-item>
+                    <paper-item icon="image:details"label="About"></paper-item>
+                 </paper-menu-button>
+              </core-tooltip>
 
               </core-toolbar>
               <div class="content" fit>
@@ -127,18 +139,12 @@
             <input style="display:none;" id="fileLoaderDialog" type="file" />
             <input style="display:none;" id="fileSaverDialog" type="file" nwsaveas="pointCloud.ply" />
             
-            
-            
-            
-            <paper-toast id="toast2" role="alert" text="Connection timed out. Showing limited messages." style="color:black;background: #4285f4;">
-              <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
-            </paper-toast>
 
             <paper-toast id="toast" role="alert" text="{{userToastMessage}}" style="color:black;background: #4285f4;">
               <div style="color: #eeff41;" onclick="console.log('RETRY')">Retry</div>
             </paper-toast>
             
-            <paper-dialog heading="Dialog" transition="paper-dialog-transition-center" id="foo">
+            <paper-dialog heading="Dialog" transition="paper-dialog-transition-center" id="mainDialog">
               <paper-button label="More Info..." dismissive></paper-button>
               <paper-button label="Decline" affirmative></paper-button>
               <paper-button label="Accept" affirmative autofocus></paper-button>
@@ -286,6 +292,14 @@
                     self.scanner.loadScan( this.value );
                   }, false);
                   loader.click();
+                },
+                //
+                toGHPage:function(){
+                  var gui = require('nw.gui');
+                  
+                  var openUrl = window.open;
+                  if(gui) openUrl = gui.Shell.openExternal
+                  openUrl("https://github.com/kaosat-dev/simple-scan")
                 },
                 //filters:
                 round:function (val, precision, method) {
