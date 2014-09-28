@@ -16,6 +16,7 @@
     isNodeWebkit: true,
     scanner:null,
     serialPorts:null,//FIXME: should it be "availablePorts"??
+    cameras:null,
     autoConnect:true,
     
     connected:false,
@@ -49,10 +50,22 @@
 
     observe:{
       "camera.framesToFlush":"cameraAttributeChanged",
-      "vision.lineExtractionParams"       :"visionAttributeChanged",
       "vision.upperFrameLimit"            :"visionAttributeChanged",
       "vision.lowerFrameLimit"            :"visionAttributeChanged",
       "vision.origin.y"                   :"visionAttributeChanged",
+      "vision.lineExtractionParams"       :"visionAttributeChanged",
+      "vision.lineExtractionParams.gaussBlurKernel"       :"visionAttributeChanged",
+      "vision.lineExtractionParams.threshold"       :"visionAttributeChanged",
+      "vision.lineExtractionParams.erosion"       :"visionAttributeChanged",
+      "vision.lineExtractionParams.dilation"       :"visionAttributeChanged",
+      "vision.lineExtractionParams.outThreshold"       :"visionAttributeChanged",
+      "vision.lineExtractionParams.maxDist"       :"visionAttributeChanged",
+      
+      "scanner.connected": "fooBarBaz",
+      "scanner.serialPorts": "fooBarBaz",
+      "scanner.pointCloudData": "fooBarBaz",
+      "scanner.autoReload": "fooBarBaz",
+      "scanner.scanProgress": "fooBarBaz",
     },
     
     
@@ -71,6 +84,8 @@
           this.scanner.camera[key] = this.camera[key];
         }
       }
+      
+      this.saveSettings();
     },
     visionAttributeChanged:function(){
       console.log("vision changed");
@@ -78,17 +93,50 @@
       {
         if(this.isNodeWebkit){
           this.scanner.vision[key] = this.vision[key];
+          //FIXME hack
+          if(key == "lineExtractionParams")
+          {
+            for(var subkey in this.vision[key])
+            {
+                this.scanner.vision[key][subkey] = this.vision[key][subkey];
+            }     
+          }
         }
       }
+      
+      this.saveSettings();
     },
 
     created:function(){
       var isNodeWebkit = (typeof process == "object");
       this.isNodeWebkit = isNodeWebkit;
       var self = this;
+      //initialize basic stuff
+      this.serialPorts = [];
+      this.cameras = [];
+      
+      
+      //test
+      /*will not work : not node v0.11.x compatible
+      var usb = require("usb");
+      usb.getDeviceList();*/
+      function gotSources(sourceInfos)
+      {
+        self.cameras = [];
+        for(var i=0;i<sourceInfos.length;i++)
+        {
+          var srcInfo=sourceInfos[i];
+          if(srcInfo.kind == "video"){
+            console.log("VIDEO" ,srcInfo);
+            srcInfo.name = srcInfo.label.split("(")[0];
+            self.cameras.push( srcInfo );
+          }
+        }
+      }
+      MediaStreamTrack.getSources(gotSources);
+      
+      ///
       var co = require('co');
-      
-      
       //TODO: how to handle this
       self.camera = {};
       self.camera.framesToFlush = 25;
@@ -122,18 +170,20 @@
         co(function* (){
           yield scanner.init();
           if(self.autoConnect) yield scanner.connect();
+          //shadow the "server" structure/params
           self.connected      = scanner.connected;
+          self.autoConnect    = scanner.autoConnect;
           self.serialPorts    = scanner.serialPorts;
           self.pointCloudData = scanner.currentScan;
           self.autoReload     = scanner.autoReload;
           self.scanProgress   = scanner.scanProgress;
           
-          //shadow the "server" structure/params
           self.vision.lineExtractionParams = scanner.vision.lineExtractionParams;
-          self.camera.framesToFlush       = scanner.camera.framesToFlush;
-          
+          self.vision.upperFrameLimit = scanner.vision.upperFrameLimit;
+          self.vision.lowerFrameLimit = scanner.vision.lowerFrameLimit;
+          self.vision.origin.y        = scanner.vision.origin.y;
+          self.camera.framesToFlush   = scanner.camera.framesToFlush;
         })();
-        
         
       }else{
         if(!(this.$.socketIo)) return;
@@ -144,6 +194,18 @@
         this.$.socketIo.addEventListener('s-io-scanFinished' ,this.onSIOScanFinished.bind(this) );
         this.$.socketIo.addEventListener('s-io-chunkStreamed',this.onSIOScanChunkStreamed.bind(this) );
       }
+    },
+
+    fooBarBaz:function(){
+      console.log("i got called, huzzaaah");
+      var keys = [ "connected","serialPorts","pointCloudData","autoReload","scanProgress"]
+      for(var i=0,key=keys[i];i<keys.length;i++)
+      {
+        if(this.isNodeWebkit){
+          this[key] = this.scanner[key];
+        }
+      }
+      this.serialPorts = this.scanner.serialPorts;//FIXME withouth this , it does not get reset
     },
 
     connect:function(){
@@ -164,8 +226,7 @@
         this.sendMessage({event:"connectToScanner",data:null});
         self.connected = true;
         //connect websocket
-        //this.$.socketIo.connect();
-        //TODO: should be based on confirmation from server
+        this.$.socketIo.connect();
       }
     },
 
