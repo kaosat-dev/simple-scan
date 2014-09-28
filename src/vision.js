@@ -1,31 +1,32 @@
 var cv = require('opencv');
-var Minilog=require("minilog");
+var Minilog= require("minilog");
+var fs     = require('fs');
+var yaml   = require('js-yaml');
 
 Minilog.pipe(Minilog.suggest).pipe(Minilog.defaultFormatter).pipe(Minilog.defaultBackend);
 var log = Minilog('vision');
 
-var config = require("./config");
-
+//var config = require("./config");
+var config = yaml.safeLoad(fs.readFileSync('./src/config.yml', 'utf8'));
 //////////////////////////
 var Vision = function()
 {
-  //TODO: make these configurable
-  this.origin = new cv.Point(0,0.75);
-  this.frameWidth = 26.6;
-  this.camWidth = 1280 ;
-  this.camHeight = 960;
+  this.origin = new cv.Point(0,config.vision.originY);
+  this.frameWidth = config.camera.frameWidth;
+  this.camWidth = config.camera.imWidth ;//1280 ;
+  this.camHeight = config.camera.imHeight;//960;
 
-  this.lineExtractionParams = {
+  this.lineExtractionParams = config.vision.lineExtractionParams; /*= {
      gaussBlurKernel : [15,15],
      threshold       : 22,
      erosion         : 2,
      dilation        : 5,
      outThreshold    : 250,
      maxDist         : 40
-  }
+  }*/
   
-  this.upperFrameLimit = config.framing.upperLimit;
-  this.lowerFrameLimit = config.framing.lowerLimit;
+  this.upperFrameLimit = config.vision.upperLimit;
+  this.lowerFrameLimit = config.vision.lowerLimit;
 
   //storage for calibration, to avoid lots of cv.captures
   this.lastLaserOn = null;

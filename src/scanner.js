@@ -1,9 +1,20 @@
 var Q = require('q');
 var Minilog=require("minilog");
 var fs = require('fs');
+var path = require('path');
 var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort;
 var sleep      = require('./sleep');
+
+var yaml       = require('js-yaml');
+
+//if there is no custom config file, create one from defaults
+if(!fs.existsSync("./src/config.js"))
+{
+  
+  fs.writeFileSync('./src/config.js', fs.readFileSync('./src/config.default.js'));
+  //fs.createReadStream('./src/config.default.js').pipe(fs.createWriteStream('./src/config.js'));
+}
 
 var Laser     = require("./laser");
 var Camera    = require("./camera");
@@ -11,11 +22,12 @@ var TurnTable = require("./turntable");
 var Vision    = require("./vision");
 
 Minilog.suggest.clear().deny('vision', 'error');
-//Minilog.suggest.clear().deny('turntable', 'debug');
+Minilog.suggest.clear().deny('scanner', 'error');
+//Minilog.suggest.clear().deny('turntable', 'error');
 var log = Minilog('scanner');
 
 var config = require("./config");
-
+var config = yaml.safeLoad(fs.readFileSync('./src/config.yml', 'utf8'));
 /////////
 
 var Scanner =function(){
@@ -23,6 +35,10 @@ var Scanner =function(){
   this.scanning    = false;
   this.calibrating = false;
   this.autoReload  = true;
+  this.reconnectAttempts = 5;
+  this.autoConnect       = true;
+  
+  this.lastScanPath = "";
   
   this.laserDetectThreshold = 40;
   this.outputFolder         = "./scanData/";
@@ -34,8 +50,11 @@ var Scanner =function(){
   this.serialPorts = [];
   this.serial = new SerialPort("/dev/ttyACM0", {
       baudrate: 9600,
-      parser: serialPort.parsers.raw
+      parser: serialPort.parsers.raw,
+      disconnectedCallback: this.onDisconnected
     },false);
+  
+  this.serial.on("open",function(){console.log("port open")});
     
   this.laser     = new Laser(this.serial);
   this.turnTable = new TurnTable(this.serial);
@@ -50,7 +69,9 @@ Scanner.prototype={};
 
 Scanner.prototype.onDisconnected=function()
 {
+  console.log("ouch");
   log.error("disconnected from device");
+  //throw new Error("MIERDA");
 }
 
 Scanner.prototype.onError=function()
@@ -63,7 +84,7 @@ Scanner.prototype.init=function*(){
   yield this.fetchPorts();
 
   var readFile  = Q.denodeify(fs.readFile);
-  var lastScanPath = config.lastScanPath;
+  var lastScanPath = this.lastScanPath = config.lastScanPath;
   
   //var defaultFile = this.outputFolder+"pointCloud.dat";
   if(this.autoReload && lastScanPath && fs.existsSync(lastScanPath))
@@ -74,6 +95,7 @@ Scanner.prototype.init=function*(){
   /*if(!fs.existsSync(this.outputFolder)){
     fs.mkdirSync(this.outputFolder, 0766);
   }*/
+  this.pollPorts();
 }
 
 Scanner.prototype.fetchPorts=function*(){
@@ -81,11 +103,52 @@ Scanner.prototype.fetchPorts=function*(){
   var serialPorts   = this.serialPorts;
   
   try{
-    this.serialPorts = serialPorts =  yield serialList();
+    var serialPorts =  yield serialList();
+    
+    if(serialPorts.length!=this.serialPorts.length)
+    {
+      this.serialPorts = serialPorts;
+      return;
+    }
+    for(var i=0;i<serialPorts.length;i++)
+    {
+      if(serialPorts[i].comName != this.serialPorts[i].comName)
+      {
+        this.serialPorts = serialPorts;
+        break;
+      }
+    }
+    //if(this.serialPorts != serialPorts) this.serialPorts = serialPorts;
   }catch(error)
   {
-    log.error("error fetching list of available serial ports:", error);
+    log.info("error fetching list of available serial ports:", error);
+    if(this.serialPorts.length!==0)
+    {
+      this.serialPorts = [];
+    }
   }
+}
+
+Scanner.prototype.pollPorts=function(){
+  var self = this;
+  var poller = function*() { 
+      yield self.fetchPorts();
+      //console.log("POLLING",self.autoConnect,self.connected,self.serialPorts);
+      
+      if(self.connected  && self.serialPorts.length==0)
+      {
+        //TODO add support for multiple ports
+        self.onDisconnected("port disconnect");
+        self.connected= false;
+      }
+      if(self.autoConnect && !self.connected && self.serialPorts.length>0)
+      {
+        yield self.connect();
+      }
+    }
+  var co = require('co');
+  poller = co(poller);
+  setInterval(poller, 2000);
 }
 
 Scanner.prototype.connect=function*()
@@ -95,10 +158,6 @@ Scanner.prototype.connect=function*()
   var serialPorts   = this.serialPorts;
   var serial        = this.serial;
   var self = this;
-  /*ports.forEach(function(port) {
-    console.log(port.comName);
-    console.log(port.pnpId);
-    console.log(port.manufacturer);*/
   
   try{
     this.serialPorts = serialPorts =  yield serialList();
@@ -112,9 +171,10 @@ Scanner.prototype.connect=function*()
     try{
        yield serialConnect();
        self.connected = true;
+       serial.on("disconnected",self.onDisconnected);
        serial.on("close",self.onDisconnected);
        serial.on("error",self.onError);
-       log.info("serial connected");
+       log.info("serial connected to port",serial.path);
     }
     catch(error)
     {
@@ -124,8 +184,8 @@ Scanner.prototype.connect=function*()
     yield sleep(500);
   }
   
-  var reconnectAttempts = 5;
-  var autoConnect = true;
+  var reconnectAttempts = self.reconnectAttempts;
+  var autoConnect       = self.autoConnect;
   
   for(var i=0;i<reconnectAttempts;i++)
   {
@@ -354,6 +414,8 @@ Scanner.prototype.calibrate = function *(doCapture, options, debug)
 Scanner.prototype.saveScan = function *(fileName, options)
 {
   if(!this.currentScan) return;
+  
+  this.lastScanPath = fileName;
   var writeFile = Q.denodeify(fs.writeFile);
   //yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(this.currentScan));
   
@@ -398,13 +460,14 @@ Scanner.prototype.saveScan = function *(fileName, options)
 Scanner.prototype.loadScan = function *(fileName, options){
   var readFile  = Q.denodeify(fs.readFile);
   var extName = path.extname(fileName);
+    console.log("fileName",fileName,"ext",extName);
   
   switch(extName)
   {
-    case 'dat':
+    case '.dat':
       var lastScan = JSON.parse( yield readFile(fileName) );
     break;
-    case 'ply':
+    case '.ply':
       console.log("NOT IMPLEMENTED");
     break;
     default:
@@ -420,9 +483,35 @@ Scanner.prototype.loadScan = function *(fileName, options){
 Scanner.prototype.saveSettings = function *(options)
 {
   var writeFile = Q.denodeify(fs.writeFile);
+  var readFile  = Q.denodeify(fs.readFile);
   //TODO: how to
-  //this.outputFolder+"pointCloud.dat"
+  //this.outputFolder+"mySettings.js"
   //yield writeFile("./config.json");//,JSON.stringify(this.latestScan));
+  config.lastScanPath = this.lastScanPath;
+  
+  config.vision.upperLimit = this.vision.upperFrameLimit;
+  config.vision.lowerLimit = this.vision.lowerFrameLimit;
+  config.vision.originY    = parseFloat(this.vision.origin.y);
+  config.vision.lineExtractionParams = this.vision.lineExtractionParams;
+  
+  config.camera.position = this.camera.position;
+  config.camera.frameWidth = this.camera.frameWidth;
+  
+  config.laser.position = this.laser.position;
+  config.laser.analyzingOffset = this.laser.analyzingOffset;
+  
+  config.turntable.position = this.turnTable.position;
+  
+  log.error("saving configuration");
+  var out = yaml.safeDump( config );
+  fs.writeFileSync('./src/config.yml',out);
+  
+  /*var out = yaml.safeDump( this.vision );
+  fs.writeFileSync('./src/visionTest.yml',out);*/
+  
+   //var src = yield readFile("./src/config.js","UTF8");
+   //console.log("src", src);
+  //yield writeFile("./src/config.js",toSrc(config,5));
 }
 
 
