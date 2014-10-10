@@ -8,6 +8,7 @@
     "socket-io": "kaosat-dev/socket-io",
     "three-js": "usco/polymer-three-js",
     "three-js-helpers": "usco/three-js-helpers",
+    "core-drawer-panel": "polymer/core-drawer-panel#~0.4.2",
     "core-icons": "Polymer/core-icons#0.4.1",
     "core-iconset-svg": "Polymer/core-iconset-svg#0.4.1",
     "core-dropdown": "Polymer/core-dropdown#0.4.1",
@@ -21,7 +22,7 @@
     "paper-menu-button": "Polymer/paper-menu-button#0.4.1",
     "paper-dropdown-menu": "Polymer/paper-dropdown-menu#0.4.1",
     "paper-item": "Polymer/paper-item#0.4.1"
-  
+   
   },
   "ignore": [
     "specs/"
