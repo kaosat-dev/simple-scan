@@ -5,13 +5,11 @@ var path = require('path');
 var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort;
 var sleep      = require('./sleep');
-
 var yaml       = require('js-yaml');
 
 //if there is no custom config file, create one from defaults
 if(!fs.existsSync("./src/config.js"))
 {
-  
   fs.writeFileSync('./src/config.js', fs.readFileSync('./src/config.default.js'));
   //fs.createReadStream('./src/config.default.js').pipe(fs.createWriteStream('./src/config.js'));
 }
@@ -34,6 +32,7 @@ var Scanner =function(){
   this.connected   = false;
   this.scanning    = false;
   this.calibrating = false;
+  this.loadingData = false;
   this.autoReload  = true;
   this.reconnectAttempts = 5;
   this.autoConnect       = true;
@@ -434,15 +433,15 @@ Scanner.prototype.saveScan = function *(fileName, options)
   });*/
   var output = [];
   output.push("ply");
-  output.push(format+" " + formatVersion);
+  output.push("format "+format+" " + formatVersion);
   output.push("element vertex " + pointsCount);
   output.push("property float x");
   output.push("property float y");
   output.push("property float z");
   
-  output.push("property float diffuse_red");
-  output.push("property float diffuse_green");
-  output.push("property float diffuse_blue");
+  output.push("property float red");
+  output.push("property float green");
+  output.push("property float blue");
   
   output.push("end_header");
   
@@ -458,25 +457,27 @@ Scanner.prototype.saveScan = function *(fileName, options)
 }
 
 Scanner.prototype.loadScan = function *(fileName, options){
+
   var readFile  = Q.denodeify(fs.readFile);
   var extName = path.extname(fileName);
-    console.log("fileName",fileName,"ext",extName);
-  
+  //console.log("fileName",fileName,"ext",extName);
+  this.loadingData = true;
   switch(extName)
   {
     case '.dat':
       var lastScan = JSON.parse( yield readFile(fileName) );
     break;
     case '.ply':
-      console.log("NOT IMPLEMENTED");
+      var PLYParser = require("usco-ply-parser");
+      var plyParser = new PLYParser();
+      var lastScan = yield( plyParser.parse( yield readFile(fileName), {useWorker:false,rawBuffers:true} ).promise );
     break;
     default:
       throw Error("file has no extension, cannot load");
     break;
-  
   }
   
-  
+  this.loadingData = false;  
   this.currentScan = lastScan ;
 }
 

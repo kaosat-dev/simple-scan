@@ -4,14 +4,15 @@
   "description": "",
   "author": "kaosat-dev",
   "license": "GPLV3",
-  "repository":"kaosat-dev/simple-scan",
+  "repository": "kaosat-dev/simple-scan",
   "dependencies": {
     "express": "^4.8.5",
     "minilog": "^2.0.6",
     "opencv": "kaosat-dev/node-opencv",
     "q": "^1.0.1",
     "serialport": "^1.4.5",
-    "socket.io": ""
+    "socket.io": "",
+    "usco-ply-parser": "git+ssh://git@github.com:usco/usco-ply-parser.git"
   },
   "devDependencies": {
     "co": "^3.1.0",
@@ -25,7 +26,6 @@
     "grunt-rename": "^0.1.4",
     "debug": "^2.0.0"
   },
-
   "main": "app://simple-scan/index.html",
   "js-flags": "--expose-gc --harmony_generators DEBUG=*",
   "chromium-args": "--js-flags=--harmony_generators",
@@ -34,7 +34,7 @@
     "title": "simple-scan",
     "frame": true,
     "toolbar": true,
-    "width": 800,
+    "width": 1200,
     "height": 600
   },
   "webkit": {
