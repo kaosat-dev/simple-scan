@@ -23,6 +23,7 @@
     scanning:false,
     calibrating:false,
     debugging:false,
+    loadingData:false,
 
     calibImageBase:null,
     calibImageDebug:null,
@@ -349,10 +350,13 @@
     loadScan:function(fileName){
       var self = this;
       var scanner = this.scanner;
+      self.loadingData = self.scanner.loadingData;
+      
       var co = require('co');
       co(function* (){
         yield scanner.loadScan(fileName);
         self.pointCloudData = self.scanner.currentScan;
+        self.loadingData = self.scanner.loadingData;
         self.fire("modelchanged");
       })();
     },

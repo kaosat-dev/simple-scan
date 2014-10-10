@@ -10,6 +10,8 @@
   display: none;
 } 
 
+
+
 three-js {
   display: block;
   position: absolute;
@@ -20,6 +22,9 @@ three-js {
   z-index: 9;
   background-color:white;
   outline: none;
+  
+  -webkit-user-select: none;
+  cursor: move;
 }
 
 .perspectiveView{
