@@ -1,4 +1,5 @@
 #NOTE: z values are depth x is width y is height
+logLevel: ""
 lastScanPath: ""
 
 vision:
@@ -25,13 +26,23 @@ camera:
   frameWidth : 26.6   #in cm. the width of what the camera sees ie place a measure tool at the back-plane and see how many cm the camera sees.
   imWidth : 1280
   imHeight : 960
+  framesToFlush : 25
+  flipX: false
+  flipY: false
 
 laser:
   position: 
     x: 14.0 #precise by construction
     y: 6.4 #not needed/used for calculations
     z: 28.8 #precise by construction
-  
+  pointPosition:
+    x: 14.0
+    y: 0.0
+    z: 0.0
+  rotation:
+    x: 0
+    y: 0
+    z: 0
   swipeRange:
     min: 18.0
     max: 52.0
@@ -39,11 +50,17 @@ laser:
   #as the actual position in the frame differs a little from calculated laserline 
   #we stop a little befor as we might catch the real non reflected laser line which creates noise
   analyzingOffset: 90
+  togglingDelay: 20 #how much time until laser is actually switched on/off
 
 turntable:
   position: 
     x: 0 #not used by calculations
     y: 0 #not used by calculations
     z: 7.5 #precise by construction
+  rotation:
+    x: 0
+    y: 0
+    z: 0
+  microSteps: 16
 
 

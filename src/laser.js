@@ -1,14 +1,14 @@
 var Q = require('q');
 var sleep = require('./sleep');
-var config = require("./config");
 
-var Laser = function(serial)
+var Laser = function(serial, config)
 {
   //NOTE: taken from infos in fsconfiguration.cpp from original fabscan
-  this.position = {x:14.0,y:6.4,z:28.8};
-  this.rotation = {x:0,y:0,z:0};
-  this.pointPosition = {x:14.0, y:0.0,z: 0.0};
+  this.position = config.laser.position;//{x:config.laser.position.x 14.0,y:6.4,z:28.8};
+  this.rotation = config.laser.rotation;//{x:0,y:0,z:0};
+  this.pointPosition = config.laser.pointPosition;//{x:14.0, y:0.0,z: 0.0};
   this.analyzingOffset = config.laser.analyzingOffset;
+  this.togglingDelay   = config.laser.togglingDelay;//how much time until laser is actually switched on/off
 
   this.serial = serial;
   this.isOn = false;
@@ -46,20 +46,20 @@ Laser.prototype.toggle=function*(flag)
   }
   
   this.isOn= isOn;
-  yield sleep(200);
+  yield sleep(this.togglingDelay);
 }
 
 Laser.prototype.turnOff=function*()
 {
    yield this.sendCommand([200]);
-   yield sleep(350);
+   yield sleep(this.togglingDelay);
    this.isOn = false;
 }
 
 Laser.prototype.turnOn=function*()
 {
    yield this.sendCommand([201]);
-   yield sleep(350);
+   yield sleep(this.togglingDelay);
    this.isOn = true;
 }
 

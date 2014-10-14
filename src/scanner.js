@@ -8,10 +8,9 @@ var sleep      = require('./sleep');
 var yaml       = require('js-yaml');
 
 //if there is no custom config file, create one from defaults
-if(!fs.existsSync("./src/config.js"))
+if(!fs.existsSync("./src/config.yml"))
 {
-  fs.writeFileSync('./src/config.js', fs.readFileSync('./src/config.default.js'));
-  //fs.createReadStream('./src/config.default.js').pipe(fs.createWriteStream('./src/config.js'));
+  fs.writeFileSync('./src/config.yml', fs.readFileSync('./src/config.default.yml'));
 }
 
 var Laser     = require("./laser");
@@ -19,12 +18,15 @@ var Camera    = require("./camera");
 var TurnTable = require("./turntable");
 var Vision    = require("./vision");
 
-Minilog.suggest.clear().deny('vision', 'error');
-Minilog.suggest.clear().deny('scanner', 'error');
-//Minilog.suggest.clear().deny('turntable', 'error');
 var log = Minilog('scanner');
 
-var config = require("./config");
+Minilog.suggest.clear().deny('camera', 'error')
+.deny('laser', 'error')
+.deny('vision', 'error')
+.deny('turntable', 'error')
+.deny('scanner', 'error');
+Minilog.enable();
+
 var config = yaml.safeLoad(fs.readFileSync('./src/config.yml', 'utf8'));
 /////////
 
@@ -53,12 +55,11 @@ var Scanner =function(){
       disconnectedCallback: this.onDisconnected
     },false);
   
-  this.serial.on("open",function(){console.log("port open")});
     
-  this.laser     = new Laser(this.serial);
-  this.turnTable = new TurnTable(this.serial);
-  this.camera    = new Camera(1);
-  this.vision    = new Vision();
+  this.laser     = new Laser(this.serial    ,config);
+  this.turnTable = new TurnTable(this.serial,config);
+  this.camera    = new Camera(1,config);
+  this.vision    = new Vision(  config);
   
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
@@ -88,7 +89,7 @@ Scanner.prototype.init=function*(){
   //var defaultFile = this.outputFolder+"pointCloud.dat";
   if(this.autoReload && lastScanPath && fs.existsSync(lastScanPath))
   {
-    var lastScan = JSON.parse( yield readFile(lastScanPath) );
+    var lastScan = yield this.loadScan( lastScanPath );
     this.currentScan = lastScan;
   }
   /*if(!fs.existsSync(this.outputFolder)){
@@ -350,7 +351,7 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
     this.scanTime = scanTime;
 
     log.info("done scanning: result model: "+totalPoints+" points");
-    if(this.saveScan) yield writeFile(this.outputFolder+"pointCloud.dat",JSON.stringify(fullModel));
+    //if(this.saveScan) yield this.saveScan("_lastScan.ply");
     return fullModel;
 }
 
@@ -454,13 +455,15 @@ Scanner.prototype.saveScan = function *(fileName, options)
   }
   output = output.join("\n");
   yield writeFile(fileName,output);
+  
+  yield this.saveSettings();
 }
 
 Scanner.prototype.loadScan = function *(fileName, options){
 
   var readFile  = Q.denodeify(fs.readFile);
   var extName = path.extname(fileName);
-  //console.log("fileName",fileName,"ext",extName);
+  this.lastScanPath = fileName;
   this.loadingData = true;
   switch(extName)
   {
@@ -479,15 +482,15 @@ Scanner.prototype.loadScan = function *(fileName, options){
   
   this.loadingData = false;  
   this.currentScan = lastScan ;
+  
+  yield this.saveSettings();
 }
 
 Scanner.prototype.saveSettings = function *(options)
 {
   var writeFile = Q.denodeify(fs.writeFile);
   var readFile  = Q.denodeify(fs.readFile);
-  //TODO: how to
-  //this.outputFolder+"mySettings.js"
-  //yield writeFile("./config.json");//,JSON.stringify(this.latestScan));
+
   config.lastScanPath = this.lastScanPath;
   
   config.vision.upperLimit = this.vision.upperFrameLimit;
@@ -495,24 +498,23 @@ Scanner.prototype.saveSettings = function *(options)
   config.vision.originY    = parseFloat(this.vision.origin.y);
   config.vision.lineExtractionParams = this.vision.lineExtractionParams;
   
-  config.camera.position = this.camera.position;
-  config.camera.frameWidth = this.camera.frameWidth;
+  config.camera.position       = this.camera.position;
+  config.camera.frameWidth     = this.camera.frameWidth;
+  config.camera.framesToFlush  = this.camera.framesToFlush;
+  config.camera.flipY          = this.camera.flipY;
+  config.camera.flipX          = this.camera.flipX;
   
-  config.laser.position = this.laser.position;
+  config.laser.position        = this.laser.position;
+  config.laser.pointPosition   = this.laser.pointPosition;
+  config.laser.rotation        = this.laser.rotation;
   config.laser.analyzingOffset = this.laser.analyzingOffset;
   
-  config.turntable.position = this.turnTable.position;
+  config.turntable.position    = this.turnTable.position;
+  config.turntable.rotation    = this.turnTable.rotation;
   
-  log.error("saving configuration");
+  log.info("saving configuration");
   var out = yaml.safeDump( config );
   fs.writeFileSync('./src/config.yml',out);
-  
-  /*var out = yaml.safeDump( this.vision );
-  fs.writeFileSync('./src/visionTest.yml',out);*/
-  
-   //var src = yield readFile("./src/config.js","UTF8");
-   //console.log("src", src);
-  //yield writeFile("./src/config.js",toSrc(config,5));
 }
 
 

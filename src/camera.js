@@ -1,29 +1,31 @@
 var Q = require('q');
 var sleep = require('./sleep');
 var cv = require('opencv');
-var config = require("./config");
 
-var Camera = function(videoDeviceIndex)
+var Camera = function(videoDeviceIndex, config)
 {
-  //TODO: get these from config/make them settable
-  this.position = {x:0,y:5.57,z:30.9};
-  this.rotation = {x:0,y:0,z:0};
- 
-  this.camera= null;
-  this.flipX = false;
-  this.flipY = false;
+  this.position = config.camera.position;
+  this.rotation = config.camera.rotation;
+  
+  this.imWidth  = config.camera.imWidth;
+  this.imHeight = config.camera.imHeight;
+  
+  this.flipX = config.camera.flipX;
+  this.flipY = config.camera.flipY;
+  
+  this.frameWidth    = config.camera.frameWidth;
+  this.framesToFlush = config.camera.framesToFlush;//workaround for camera buffers not emptying
+  
   
   this.isOn = false;
-
-  this.imWidth = 1280;
-  this.imHeight = 960;
-
-  //FIXME : workaround for mem leak
-  this._capturedFrames = 0;
+  this.camera= null;
   this.videoDeviceIndex = videoDeviceIndex || 0;
-  
-  this.frameWidth = 26.6;
-  this.framesToFlush = 25;//workaround for camera buffers not emptying
+ 
+
+  //FIXME : workaround for opencv videocapture mem leak
+  this._capturedFrames  = 0;
+
+ 
 }
 
 

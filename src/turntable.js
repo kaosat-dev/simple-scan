@@ -3,24 +3,23 @@ Minilog.pipe(Minilog.suggest).pipe(Minilog.defaultFormatter).pipe(Minilog.defaul
 Minilog.suggest.clear().deny('turntable', 'debug');
 Minilog.enable();
 var log = Minilog('turntable');
-var config = require('./config');
 
-var TurnTable = function(serial)
+var TurnTable = function(serial, config)
 {
-  this.position = {x:0,y:0,z:7.5};
-  this.rotation = {x:0,y:0,z:0};
- 
-  this.serial = serial;
-
+  this.position   = config.turntable.position;//{x:0,y:0,z:7.5};
+  this.rotation   = config.turntable.rotation;//{x:0,y:0,z:0};
+  this.microSteps = config.turntable.microSteps;
+  
+  
   var stepsPerRot = 200; //steps per 360 deg turn
-  var microSteps = 16;
-  var totalSteps = stepsPerRot*microSteps;//actual steps per 360 deg turn
+  var totalSteps = stepsPerRot*this.microSteps;//actual steps per 360 deg turn
   this.stepsPerDeg = totalSteps/360;
+
+  this.degreesPerStep = 360.0/200.0/this.microSteps; //the size of a microstep
+
+
+  this.serial = serial;
   this.isOn = false;
-
-  this.degreesPerStep = 360.0/200.0/microSteps; //the size of a microstep
-
-
   this.direction = 1;
 }
 

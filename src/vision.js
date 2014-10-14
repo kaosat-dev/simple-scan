@@ -6,25 +6,16 @@ var yaml   = require('js-yaml');
 Minilog.pipe(Minilog.suggest).pipe(Minilog.defaultFormatter).pipe(Minilog.defaultBackend);
 var log = Minilog('vision');
 
-//var config = require("./config");
-var config = yaml.safeLoad(fs.readFileSync('./src/config.yml', 'utf8'));
 //////////////////////////
-var Vision = function()
+var Vision = function(config)
 {
-  this.origin = new cv.Point(0,config.vision.originY);
+  this.origin     = new cv.Point(0,config.vision.originY);
   this.frameWidth = config.camera.frameWidth;
-  this.camWidth = config.camera.imWidth ;//1280 ;
-  this.camHeight = config.camera.imHeight;//960;
+  this.camWidth   = config.camera.imWidth ;//1280 ;
+  this.camHeight  = config.camera.imHeight;//960;
 
-  this.lineExtractionParams = config.vision.lineExtractionParams; /*= {
-     gaussBlurKernel : [15,15],
-     threshold       : 22,
-     erosion         : 2,
-     dilation        : 5,
-     outThreshold    : 250,
-     maxDist         : 40
-  }*/
-  
+  this.lineExtractionParams = config.vision.lineExtractionParams; 
+
   this.upperFrameLimit = config.vision.upperLimit;
   this.lowerFrameLimit = config.vision.lowerLimit;
 
