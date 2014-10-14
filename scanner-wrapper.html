@@ -67,6 +67,7 @@
       "scanner.pointCloudData": "fooBarBaz",
       "scanner.autoReload": "fooBarBaz",
       "scanner.scanProgress": "fooBarBaz",
+      "scanner.currentScan":"fooBarBaz"
     },
     
     
@@ -78,7 +79,7 @@
     clients: {},    
   
     cameraAttributeChanged:function(){
-      console.log("camera changed");
+      //console.log("camera changed");
       for(var key in this.camera)
       {
         if(this.isNodeWebkit){
@@ -89,7 +90,7 @@
       this.saveSettings();
     },
     visionAttributeChanged:function(){
-      console.log("vision changed");
+      //console.log("vision changed");
       for(var key in this.vision)
       {
         if(this.isNodeWebkit){
@@ -128,7 +129,7 @@
         {
           var srcInfo=sourceInfos[i];
           if(srcInfo.kind == "video"){
-            console.log("VIDEO" ,srcInfo);
+            //console.log("VIDEO" ,srcInfo);
             srcInfo.name = srcInfo.label.split("(")[0];
             self.cameras.push( srcInfo );
           }
@@ -184,6 +185,7 @@
           self.vision.lowerFrameLimit = scanner.vision.lowerFrameLimit;
           self.vision.origin.y        = scanner.vision.origin.y;
           self.camera.framesToFlush   = scanner.camera.framesToFlush;
+          
         })();
         
       }else{
@@ -198,15 +200,20 @@
     },
 
     fooBarBaz:function(){
-      console.log("i got called, huzzaaah");
+      //console.log("i got called, huzzaaah");
       var keys = [ "connected","serialPorts","pointCloudData","autoReload","scanProgress"]
       for(var i=0,key=keys[i];i<keys.length;i++)
       {
         if(this.isNodeWebkit){
           this[key] = this.scanner[key];
+          /*if(key == "pointCloudData" || keys[i] == "currentScan")
+          {
+            this["pointCloudData"] = this.scanner["currentScan"];
+          }*/
         }
       }
       this.serialPorts = this.scanner.serialPorts;//FIXME withouth this , it does not get reset
+      this.pointCloudData = this.scanner.currentScan;//HACK
     },
 
     connect:function(){
@@ -244,7 +251,7 @@
       var socket = new EventEmitter();//TODO: handle streaming differently
       
       socket.on('chunkStreamed', function (data) {
-          console.log("event has occured");//,data);
+          //console.log("event has occured");//,data);
           //self.pointCloudData = null;
           self.pointCloudData = self.scanner.currentScan;//data.data;
           //console.log("foo", self.pointCloudData);

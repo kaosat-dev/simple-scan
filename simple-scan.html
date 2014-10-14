@@ -62,7 +62,7 @@
                   <template if="{{scanner.loadingData}}">
                     <span>&nbsp&nbsp Loading file , please wait...   &nbsp&nbsp</span>
                   </template>
-                  <template if="{{scanner.scanTime!=0}}">
+                  <template if="{{scanner.scanTime!=0 && !scanner.scanning}}">
                     <span class="success">Success ! Scan took {{scanner.scanTime/60 | round(1, 'floor') }} Min(s) </span>
                   </template>
                 </span>
@@ -220,7 +220,7 @@
                 //event handlers
                 selectedMenuChanged:function(event, detail){
                 
-                  console.log("selected menu item changed",detail);
+                  //console.log("selected menu item changed",detail);
                   if((detail.item.label == "Settings" || detail.item.label == "Calibrate") && detail.isSelected)
                   {
                     this.$.mainPanel.togglePanel();
@@ -295,7 +295,6 @@
                 },
                 startScan:function()
                 {
-                    console.log("starting Scan");
                     this.scanner.scan();
 
                     this.notificationMessage = "Scan in progress...";
@@ -305,7 +304,6 @@
                   var self = this;
                   var saver = this.$.fileSaverDialog;
                   saver.addEventListener("change", function(evt) {
-                    console.log("saving to", this.value);
                     self.scanner.saveScan( this.value );
                   }, false);
                   saver.click();
@@ -314,7 +312,6 @@
                   var self = this;
                   var loader = this.$.fileLoaderDialog;
                   loader.addEventListener("change", function(evt) {
-                    console.log("loading from",this.value);
                     self.scanner.loadScan( this.value );
                   }, false);
                   loader.click();
