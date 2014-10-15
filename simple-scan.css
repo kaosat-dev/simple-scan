@@ -19,7 +19,6 @@ three-js {
   height: 100%;
   left: 0px;
   top: 0px;
-  z-index: 9;
   background-color:white;
   outline: none;
   
@@ -53,6 +52,7 @@ height: 20px;
 
 .content{
   overflow:hidden;
+  z-index:10;
 }
 
 .success{
@@ -108,11 +108,15 @@ settings-view{
 
 /*styling of core/paper polymer elements*/
 
+[drawer] {
+  z-index:10;
+}
+
+
 core-pages.controls{
-  width: 400px;
+  width:400px;
   height: 100%;
   position:absolute;
-  z-index:11;
   top:0px;
   right:0px;
 }

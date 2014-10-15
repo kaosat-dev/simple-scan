@@ -109,9 +109,15 @@
       observe:{
         "scanner.calibImageBase" :"calibImageBaseChanged",
         "scanner.calibImageDebug":"calibImageDebugChanged",
+        "scanner.vision.lineExtractionParams.gaussBlurKernel":"srcBlurKernelChanged"
       },
       
       //Attribute change handlers
+      srcBlurKernelChanged:function(){
+        var srcBlurKernel = this.scanner.vision.lineExtractionParams.gaussBlurKernel[0];
+        if(this.blurKernel != srcBlurKernel)
+        this.blurKernel = srcBlurKernel;
+      },
       calibViewChanged:function(){
         var calibView = this.calibView;
       },
@@ -154,7 +160,10 @@
         img.src = 'data:image/png;base64,' + base64String;
       },
       blurKernelChanged:function(){
-        this.scanner.vision.lineExtractionParams.blurKernel = [this.blurKernel,this.blurKernel];
+        //this.scanner.vision.lineExtractionParams.blurKernel = [this.blurKernel,this.blurKernel];
+        this.scanner.vision.lineExtractionParams.gaussBlurKernel[0] = this.nearestOdd(this.blurKernel);
+        this.scanner.vision.lineExtractionParams.gaussBlurKernel[1] = this.nearestOdd(this.blurKernel);
+                //console.log("blurKernelChanged",this.blurKernel,this.scanner.vision.lineExtractionParams.blurKernel);
       },
       //API
       calibrate:function(){
@@ -164,6 +173,12 @@
         {
           this.calibView = 0;
         }
+      },
+      //filters
+      //FIXME
+      nearestOdd:function(o){
+         //return Math.floor(o+1) | 1;
+         return o;
       }
     
     });

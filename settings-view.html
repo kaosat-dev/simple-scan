@@ -23,9 +23,21 @@
       
       <section>
         <h4>Various</h4>
+        <!--<div center horizontal layout class="control">
+          <div flex>Firmware</div>
+          <template if="{{!scanner.uploadingFw}}">
+            <paper-icon-button label="Upload firmware" id="" icon="" on-tap="{{uploadFirmware}}"></paper-icon-button>
+          </template>
+        </div>-->
+        <div center horizontal layout class="control">
+          <div flex>Auto Connect to serial</div>
+          <paper-checkbox id="autoConnect" class="blue" alt="autoConnect" checked="{{scanner.autoConnect}}"></paper-checkbox>
+        </div>
         <div center horizontal layout class="control">
           <div flex>Toggle Debug</div>
           <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{scanner.debugging}}"></paper-checkbox>
+          <!--<div flex>AutoSave scan on completion</div>
+          <paper-checkbox id="debugToggler" class="blue" alt="debugToggler" checked="{{scanner.debugging}}"></paper-checkbox>-->
         </div>
         <div center horizontal layout class="control">
           <div flex>Toggle Colors</div>
@@ -78,7 +90,8 @@
               <paper-icon-button fill id="rotateCW" icon="rotate-right" on-tap="{{rotateCW}}" disabled?="{{!stepperToggled}}"></paper-icon-button>
             </div>
           </section>
-
+          
+          <!--
           <section>
             <h3>Video</h3>
             <div center horizontal layout>
@@ -99,7 +112,7 @@
               </div>
             </div>
 
-          </section>   
+          </section>   -->
 
         </div>
      </template>
@@ -157,6 +170,10 @@
       rotateCCW:function()
       {
         this.scanner.rotateTurnTable(-this.angleToRotate);
+      },
+      uploadFirmware:function(){
+        this.scanner.uploadFirmware();
+      
       },
       //TODO: move this to calibration ???
       detectLaser:function(){

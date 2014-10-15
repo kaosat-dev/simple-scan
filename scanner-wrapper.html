@@ -24,6 +24,7 @@
     calibrating:false,
     debugging:false,
     loadingData:false,
+    uploadingFw:false,
 
     calibImageBase:null,
     calibImageDebug:null,
@@ -35,11 +36,12 @@
     vision:null,
     display:null,//NOT SURE ? should we keep visual settings here?
     
-    scanTime:0,
-    scanProgress:0,
+    uploadProgress:0,
     
     scanQual:45,
     scanQualVert:2,
+    scanTime:0,
+    scanProgress:0,
     
     scanQualityMap:{
       "ultra-high":{angle:0.01,yDpi:1},
@@ -215,7 +217,22 @@
       this.serialPorts = this.scanner.serialPorts;//FIXME withouth this , it does not get reset
       this.pointCloudData = this.scanner.currentScan;//HACK
     },
-
+    uploadFirmware:function(){
+      console.log("uploading firmware");
+      var self = this;
+      self.uploadingFw = true;
+      if(this.isNodeWebkit)
+      {
+        var co = require('co');
+        co(function* (){
+          yield self.scanner.uploadFirmware();
+        })();
+        self.uploadProgress = 100;
+        self.uploadingFw = false;
+      }
+    },
+    
+    
     connect:function(){
       var self = this;
       if(this.isNodeWebkit)

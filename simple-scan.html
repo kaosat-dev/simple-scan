@@ -59,6 +59,10 @@
                   <template if="{{scanner.scanning}}">
                     <span>Scan in progress...   &nbsp&nbsp</span><paper-progress value="{{scanner.scanProgress}}"></paper-progress>
                   </template>
+                  <template if="{{scanner.uploadingFw}}">
+                    <span>Uploading firmware...   &nbsp&nbsp</span><paper-progress value="{{scanner.uploadProgress}}"></paper-progress>
+                  </template>
+                  
                   <template if="{{scanner.loadingData}}">
                     <span>&nbsp&nbsp Loading file , please wait...   &nbsp&nbsp</span>
                   </template>
@@ -76,7 +80,7 @@
                     <paper-icon-button icon="image:auto-fix" on-tap="{{activateStuff}}" ></paper-icon-button>
                   </core-tooltip>
                   <core-tooltip label="Settings">
-                    <paper-icon-button icon="settings"></paper-icon-button>
+                    <paper-icon-button icon="settings" on-tap="{{activateStuff}}"></paper-icon-button>
                   </core-tooltip>
                   <core-tooltip label="Save scan">
                     <paper-icon-button icon="file-download"  on-tap="{{save}}" ></paper-icon-button>
@@ -111,8 +115,8 @@
 
               </core-toolbar>
               <div class="content" fit>
-                <core-drawer-panel responsiveWidth="100000px" rightDrawer id="mainPanel">
-                  <three-js id="threeJs" main>
+                <core-drawer-panel responsiveWidth="100000px" rightDrawer disableSwipe id="mainPanel">
+                  <three-js id="threeJs" main on-tap="{{closeDrawer}}">
                     <three-stats id="stats" show=false></three-stats>
                     <tween-js></tween-js>
                     <three-js-scene name="main" active pickable>
@@ -201,17 +205,6 @@
                   var turnTable = new THREE.Line( geometry, material );
                   turnTable.rotation.set(Math.PI/2,0,0)
                   this.triDViewer.addToScene( turnTable, "helpers"  );
-
-                  /*
-                  var geometry = new THREE.BoxGeometry( 50, 50, 50 );
-                  var material = new THREE.MeshLambertMaterial( { color: 0xdddddd, shading: THREE.FlatShading } ) ;//new THREE.MeshBasicMaterial( {color: 0xffff00} );
-                  var cube = new THREE.Mesh( geometry, material );
-  
-                  cube.castShadow = true;
-                  cube.receiveShadow = false;
-                  cube.position.set( 0, 24,0);
-
-                  this.triDViewer.addToScene( cube);*/
                 },
                 showToast:function(){
                   this.$.toast2.show();
@@ -220,17 +213,23 @@
                 //event handlers
                 selectedMenuChanged:function(event, detail){
                 
-                  //console.log("selected menu item changed",detail);
+                  /*console.log("selected menu item changed",detail);
                   if((detail.item.label == "Settings" || detail.item.label == "Calibrate") && detail.isSelected)
                   {
-                    this.$.mainPanel.togglePanel();
+                    this.$.mainPanel.openDrawer();
                   }
                   else{
                     this.$.mainPanel.closeDrawer();
-                  }
+                  }*/
                 },
                 activateStuff:function(){
-                
+                  this.$.mainPanel.selected = "drawer";
+                },
+                closeDrawer:function(){
+                                    //this.$.mainPanel.togglePanel();
+                  //this.$.mainPanel.closeDrawer();
+                  this.$.mainPanel.selected = "main";
+                  this.$.menuItems.selected = -1;
                 },
                 
                 //attribute change handlers
@@ -299,6 +298,9 @@
 
                     this.notificationMessage = "Scan in progress...";
                     this.scanData = {positions:[],colors:[]};
+                    
+                    //FIXME:
+                    this.closeDrawer();
                 },
                 save:function(){
                   var self = this;
@@ -307,6 +309,9 @@
                     self.scanner.saveScan( this.value );
                   }, false);
                   saver.click();
+                  //FIXME:
+                    self.closeDrawer();
+                  
                 },
                 load:function(){
                   var self = this;
@@ -315,6 +320,8 @@
                     self.scanner.loadScan( this.value );
                   }, false);
                   loader.click();
+                  //FIXME:
+                    self.closeDrawer();
                 },
                 //
                 toGHPage:function(){
