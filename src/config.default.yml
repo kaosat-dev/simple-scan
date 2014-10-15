@@ -1,6 +1,9 @@
 #NOTE: z values are depth x is width y is height
 logLevel: ""
 lastScanPath: ""
+autoConnect: true
+autoReload : true
+
 
 vision:
   upperLimit: 0
