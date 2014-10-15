@@ -54,6 +54,7 @@ var Scanner =function(){
       parser: serialPort.parsers.raw,
       disconnectedCallback: this.onDisconnected
     },false);
+  this.serialPoller = null;
   
     
   this.laser     = new Laser(this.serial    ,config);
@@ -69,9 +70,7 @@ Scanner.prototype={};
 
 Scanner.prototype.onDisconnected=function()
 {
-  console.log("ouch");
   log.error("disconnected from device");
-  //throw new Error("MIERDA");
 }
 
 Scanner.prototype.onError=function()
@@ -80,11 +79,14 @@ Scanner.prototype.onError=function()
 }
 
 Scanner.prototype.init=function*(){
+  var lastScanPath = this.lastScanPath = config.lastScanPath;
+  this.autoReload = config.autoReload;
+  this.autoConnect= config.autoConnect;
+
   //fetch list of serial ports
   yield this.fetchPorts();
 
   var readFile  = Q.denodeify(fs.readFile);
-  var lastScanPath = this.lastScanPath = config.lastScanPath;
   
   //var defaultFile = this.outputFolder+"pointCloud.dat";
   if(this.autoReload && lastScanPath && fs.existsSync(lastScanPath))
@@ -92,10 +94,10 @@ Scanner.prototype.init=function*(){
     var lastScan = yield this.loadScan( lastScanPath );
     this.currentScan = lastScan;
   }
-  /*if(!fs.existsSync(this.outputFolder)){
-    fs.mkdirSync(this.outputFolder, 0766);
-  }*/
-  this.pollPorts();
+  if(this.autoConnect)
+  {
+    this.pollPorts();
+  }
 }
 
 Scanner.prototype.fetchPorts=function*(){
@@ -134,7 +136,6 @@ Scanner.prototype.pollPorts=function(){
   var poller = function*() { 
       yield self.fetchPorts();
       //console.log("POLLING",self.autoConnect,self.connected,self.serialPorts);
-      
       if(self.connected  && self.serialPorts.length==0)
       {
         //TODO add support for multiple ports
@@ -148,7 +149,43 @@ Scanner.prototype.pollPorts=function(){
     }
   var co = require('co');
   poller = co(poller);
-  setInterval(poller, 2000);
+  this.serialPoller = setInterval(poller, 2000);
+}
+
+Scanner.prototype.uploadFirmware = function*(){
+  log.error("uploading firmware");
+  var hexToBin = function(code) {
+    var count, data, line, _i, _len, _ref;
+    data = '';
+    _ref = code.split('\n');
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      line = _ref[_i];
+      count = parseInt(line.slice(1, 3), 16);
+      if (count && line.slice(7, 9) === '00') {
+        data += line.slice(9, 9 + 2 * count);
+      }
+    }
+    return new Buffer(data, 'hex');
+  };
+  //this.disconnect();
+  
+  var avrUploader = require("./avrUpload_");
+  
+  var hex = fs.readFileSync('./firmware/firmware.hex', 'ascii');
+  var toUpload = hexToBin(hex);
+  
+  //hack 
+  this.serial.baudRate = 115200;
+  
+  avrUploader(this.serial, toUpload, '/dev/ttyACM0', function(err) {
+    if (err) {
+      console.error('err', err);
+    }
+    console.log(toUpload.length);
+  });
+  yield sleep(5000);
+  
+  yield this.connect();
 }
 
 Scanner.prototype.connect=function*()
@@ -199,7 +236,17 @@ Scanner.prototype.connect=function*()
       break;
     }
   }
+}
 
+
+Scanner.prototype.disconnect = function()
+{
+  if(this.connected){
+  
+  try{
+    this.serial.close();} catch(error){}
+  }
+  
 }
 
 //send command to arduino, wait for ack
@@ -275,6 +322,7 @@ Scanner.prototype.scan = function *(stepDegrees, yDpi, stream, debug, dummy)
 {
    var scanStepsTotal = 360/stepDegrees;
    var scanStep = 1/scanStepsTotal*100;
+   console.log("scanning");
    
    log.info("started scanning in ",stepDegrees,"increments, totalslices:",scanStepsTotal);
    var writeFile = Q.denodeify(fs.writeFile);
