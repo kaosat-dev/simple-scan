@@ -2,15 +2,19 @@ var Q = require('q');
 var Minilog=require("minilog");
 var fs = require('fs');
 var path = require('path');
+var pathExtra  = require('path-extra');
 var serialPort = require("serialport");
 var SerialPort = serialPort.SerialPort;
 var sleep      = require('./sleep');
 var yaml       = require('js-yaml');
 
+//FIXME: read from package.json
+var appName = "simple-scan";
 //if there is no custom config file, create one from defaults
-if(!fs.existsSync("./src/config.yml"))
+var configPath = path.join( pathExtra.datadir(appName),"config.yml");
+if(!fs.existsSync(configPath))
 {
-  fs.writeFileSync('./src/config.yml', fs.readFileSync('./src/config.default.yml'));
+  fs.writeFileSync(configPath, fs.readFileSync('./src/config.default.yml'));
 }
 
 var Laser     = require("./laser");
@@ -27,7 +31,7 @@ Minilog.suggest.clear().deny('camera', 'error')
 .deny('scanner', 'error');
 Minilog.enable();
 
-var config = yaml.safeLoad(fs.readFileSync('./src/config.yml', 'utf8'));
+var config = yaml.safeLoad(fs.readFileSync(configPath, 'utf8'));
 /////////
 
 var Scanner =function(){
@@ -562,7 +566,7 @@ Scanner.prototype.saveSettings = function *(options)
   
   log.info("saving configuration");
   var out = yaml.safeDump( config );
-  fs.writeFileSync('./src/config.yml',out);
+  fs.writeFileSync(configPath, out);
 }
 
 
