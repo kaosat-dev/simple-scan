@@ -8,8 +8,7 @@ var SerialPort = serialPort.SerialPort;
 var sleep      = require('./sleep');
 var yaml       = require('js-yaml');
 
-//FIXME: read from package.json
-var appName = "simple-scan";
+var appName = require('../package.json').name;
 //if there is no custom config file, create one from defaults
 var configPath = path.join( pathExtra.datadir(appName),"config.yml");
 if(!fs.existsSync(configPath))
@@ -215,6 +214,7 @@ Scanner.prototype.connect=function*()
        serial.on("disconnected",self.onDisconnected);
        serial.on("close",self.onDisconnected);
        serial.on("error",self.onError);
+       
        log.info("serial connected to port",serial.path);
     }
     catch(error)
@@ -227,10 +227,12 @@ Scanner.prototype.connect=function*()
   
   var reconnectAttempts = self.reconnectAttempts;
   var autoConnect       = self.autoConnect;
-  
+
   for(var i=0;i<reconnectAttempts;i++)
   {
-    yield connectAttempt();
+    try{
+      yield connectAttempt();
+    }catch(error){}
     if((!this.connected) && autoConnect && serialPorts.length> 0 )
     {
       this.serial.path = serialPorts[0].comName;

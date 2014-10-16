@@ -132,7 +132,6 @@ for(var i=0;i<attempts;i++)
 
 })();
 
-console.log("yup");
 app.listen(port);
 console.log('Magic happens on port ' + port);
 
