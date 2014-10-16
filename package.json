@@ -10,7 +10,7 @@
     "minilog": "^2.0.6",
     "opencv": "kaosat-dev/node-opencv",
     "q": "^1.0.1",
-    "serialport": "^1.4.5",
+    "serialport": "^1.4.6",
     "socket.io": "",
     "usco-ply-parser": "git+ssh://git@github.com:usco/usco-ply-parser.git",
     "path-extra": "^0.3.0"
