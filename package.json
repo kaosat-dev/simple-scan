@@ -28,7 +28,7 @@
     "grunt-rename": "^0.1.4",
     "debug": "^2.0.0"
   },
-  "main": "app://simple-scan/index.html",
+  "main": "app://simple-scan/app/index.html",
   "js-flags": "--expose-gc --harmony_generators DEBUG=*",
   "chromium-args": "--js-flags=--harmony_generators",
   "node-remote": "localhost",
