@@ -8,12 +8,12 @@ var SerialPort = serialPort.SerialPort;
 var sleep      = require('./sleep');
 var yaml       = require('js-yaml');
 
-var appName = require('../package.json').name;
+var appName = require('../../package.json').name;
 //if there is no custom config file, create one from defaults
 var configPath = path.join( pathExtra.datadir(appName),"config.yml");
 if(!fs.existsSync(configPath))
 {
-  fs.writeFileSync(configPath, fs.readFileSync('./src/config.default.yml'));
+  fs.writeFileSync(configPath, fs.readFileSync('./server/config.default.yml'));
 }
 
 var Laser     = require("./laser");
@@ -576,19 +576,16 @@ Scanner.prototype.saveSettings = function *(options)
 
 Scanner.prototype.checkForUpdates = function *(options)
 {
-  var localVersion = require('../package.json').version;
+  log.info("checking for updates");
+  var remoteCheckUrl = 'https://raw.githubusercontent.com/kaosat-dev/simple-scan/master/package.json';
+  var localVersion = require('../../package.json').version;
   
   
   function fetchRemoteVersion(){
     var deferred = Q.defer();
     var http = require('https');
 
-    var options = {
-        host: 'https://raw.githubusercontent.com',
-        path: '/kaosat-dev/simple-scan/master/package.json'
-    }
-    var url = 'https://raw.githubusercontent.com/kaosat-dev/simple-scan/master/package.json';
-    var request = http.get(url, function (res) {
+    var request = http.get(remoteCheckUrl, function (res) {
         var data = '';
         res.on('data', function (chunk) {
             data += chunk;
@@ -609,14 +606,11 @@ Scanner.prototype.checkForUpdates = function *(options)
   
   var remoteVersion = yield fetchRemoteVersion(); 
   
-  console.log("CHECKING FOR UPDATES", localVersion, remoteVersion);
   var semver  = require('semver');
   if(semver.gt(remoteVersion, localVersion))
   {
     this.updateAvailable = true;
-        console.log("WOOAH , get that new version asap !");
+    log.info("new version available");
   }
 }
-
-
 module.exports = Scanner;
