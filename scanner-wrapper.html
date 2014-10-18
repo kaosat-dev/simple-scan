@@ -43,6 +43,11 @@
     scanTime:0,
     scanProgress:0,
     
+    //various
+    checkingUpdates:false,
+    updateAvailable: false,
+    afterUpdate: false,
+    
     scanQualityMap:{
       "ultra-high":{angle:0.01,yDpi:1},
       "high":{angle:0.1,yDpi:1},
@@ -390,6 +395,17 @@
       var co = require('co');
       co(function* (){
         yield scanner.saveSettings();
+      })();
+    },
+    checkForUpdates:function(){
+      var scanner = this.scanner;
+      var self = this;
+      var co = require('co');
+      co(function* (){
+        self.checkingUpdates = true;
+        yield scanner.checkForUpdates();
+        self.updateAvailable = scanner.updateAvailable;
+        self.checkingUpdates = false;
       })();
     },
     //OTHER STUFF : TODO: cleanup

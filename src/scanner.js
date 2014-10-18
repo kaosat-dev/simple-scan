@@ -50,6 +50,8 @@ var Scanner =function(){
   this.scanTime             =0;
   this._scanStart= null;
   this.scanProgress =0;
+  
+  this.updateAvailable = false;
 
   this.serialPorts = [];
   this.serial = new SerialPort("/dev/ttyACM0", {
@@ -67,6 +69,7 @@ var Scanner =function(){
   
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
+  
 }
 
 Scanner.prototype={};
@@ -571,7 +574,49 @@ Scanner.prototype.saveSettings = function *(options)
   fs.writeFileSync(configPath, out);
 }
 
+Scanner.prototype.checkForUpdates = function *(options)
+{
+  var localVersion = require('../package.json').version;
+  
+  
+  function fetchRemoteVersion(){
+    var deferred = Q.defer();
+    var http = require('https');
 
+    var options = {
+        host: 'https://raw.githubusercontent.com',
+        path: '/kaosat-dev/simple-scan/master/package.json'
+    }
+    var url = 'https://raw.githubusercontent.com/kaosat-dev/simple-scan/master/package.json';
+    var request = http.get(url, function (res) {
+        var data = '';
+        res.on('data', function (chunk) {
+            data += chunk;
+        });
+        res.on('end', function () {
+            data = JSON.parse(data).version;
+            deferred.resolve(data);
+
+        });
+    });
+    request.on('error', function (e) {
+        deferred.reject(e);
+    });
+    request.end();
+    return deferred.promise;
+  }
+  
+  
+  var remoteVersion = yield fetchRemoteVersion(); 
+  
+  console.log("CHECKING FOR UPDATES", localVersion, remoteVersion);
+  var semver  = require('semver');
+  if(semver.gt(remoteVersion, localVersion))
+  {
+    this.updateAvailable = true;
+        console.log("WOOAH , get that new version asap !");
+  }
+}
 
 
 module.exports = Scanner;

@@ -21,14 +21,15 @@
     "paper-checkbox": "Polymer/paper-checkbox#0.4.1",
     "paper-menu-button": "Polymer/paper-menu-button#0.4.1",
     "paper-dropdown-menu": "Polymer/paper-dropdown-menu#0.4.1",
-    "paper-item": "Polymer/paper-item#0.4.1"
-   
+    "paper-item": "Polymer/paper-item#0.4.1",
+    "paper-dialog": "Polymer/paper-dialog#~0.4.2"
   },
   "ignore": [
     "specs/"
   ],
   "resolutions": {
-    "polymer": "0.4.1",
-    "platform": "^0.4.0"
+    "polymer": "^0.4.0",
+    "platform": "0.4.0",
+    "core-component-page": "^0.4.0"
   }
 }

@@ -9,6 +9,7 @@
 <link rel="import" href="components/core-icons/image-icons.html">
 <link rel="import" href="components/core-icons/social-icons.html">
 <link rel="import" href="components/core-icons/av-icons.html">
+<link rel="import" href="components/core-icons/notification-icons.html">
 
 <link rel="import" href="components/core-pages/core-pages.html">
 <link rel="import" href="components/core-drawer-panel/core-drawer-panel.html">
@@ -26,8 +27,8 @@
 <link rel="import" href="components/paper-checkbox/paper-checkbox.html">
 
 <!--<link rel="import" href="components/paper-toast/paper-toast.html">
-<link rel="import" href="components/paper-dialog/paper-dialog-transition.html">-
-<link rel="import" href="components/paper-dialog/paper-dialog.html" >-->
+<link rel="import" href="components/paper-dialog/paper-dialog-transition.html">-->
+<link rel="import" href="components/paper-dialog/paper-dialog.html" >
 
 <link rel="import" href="components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="components/paper-slider/paper-slider.html">
@@ -39,6 +40,7 @@
 <link rel="import" href="components/three-js-helpers/shadow-plane.html">
 <link rel="import" href="components/three-js-helpers/mirror-plane.html">
 
+<link rel="import" href="components/mark-down/mark-down.html">
 
 <link rel="import" href="scanner-wrapper.html">
 <link rel="import" href="calibration-view.html">
@@ -107,7 +109,8 @@
                </paper-menu-button>-->
                <core-tooltip label="Various, help etc" position="left">
                  <paper-menu-button class="topDropDown" icon="more-vert" halign="right" valign="bottom" noTransition>
-                    <paper-item icon="help"label="Help"></paper-item>
+                    <paper-item icon="notification:system-update" label="Check for Updates" on-tap="{{checkUpdates}}"></paper-item>
+                    <paper-item icon="help"label="Help" on-tap="{{openHelp}}"></paper-item>
                     <paper-item icon="social:post-github"label="Fork" on-tap="{{toGHPage}}"></paper-item>
                     <paper-item icon="image:details"label="About"></paper-item>
                  </paper-menu-button>
@@ -156,10 +159,51 @@
             </paper-toast>
             
             <paper-dialog heading="Dialog" transition="paper-dialog-transition-center" id="mainDialog">
-              <paper-button label="More Info..." dismissive></paper-button>
-              <paper-button label="Decline" affirmative></paper-button>
-              <paper-button label="Accept" affirmative autofocus></paper-button>
+              <mark-down>
+                Hello, **world!**
+                <iframe>
+                
+                </iframe>
+              </mark-down>
+              <paper-button label="Cancel" affirmative></paper-button>
+              <paper-button label="OK" affirmative autofocus></paper-button>
             </paper-dialog>
+            
+            <paper-dialog heading="Updates" transition="paper-dialog-transition-center" id="updateDialog">
+              <div>
+                <template if="{{scanner.checkingUpdates}}">
+                Checking for updates...
+                </template>
+                {{scanner.updateAvailable | updateTextFilterTest}}
+                <!--<template if="{{scanner.updateAvailable}}">
+                A new version is available , would you like to download it ?
+                </template>
+                <template if="{{!scanner.updateAvailable}}">
+                No new version is available !
+                </template>-->
+              </div>
+              <template if="{{scanner.updateAvailable}}">
+                <paper-button label="Cancel" affirmative></paper-button>
+              </template>
+              <paper-button label="Ok" affirmative autofocus on-tap="{{validateTest}}"></paper-button>
+            </paper-dialog>
+            
+            <paper-dialog heading="Changelog" transition="paper-dialog-transition-center" id="changeLogDialog">
+              <mark-down>
+                v 0.10.1
+                =========
+                  * stuff
+                  * fixed more stuff
+                  * sf
+                  
+                v 0.10.0
+                =========
+                  * stuff
+                  * more stuff
+              </mark-down>
+              <paper-button label="Ok" affirmative autofocus></paper-button>
+            </paper-dialog>
+            
 
             <scanner-wrapper id="scannerWrapper" 
             pointCloudData="{{pointCloudData}}" on-modelchanged="{{pointCloudNeedsUpdate}}">
@@ -205,6 +249,14 @@
                   var turnTable = new THREE.Line( geometry, material );
                   turnTable.rotation.set(Math.PI/2,0,0)
                   this.triDViewer.addToScene( turnTable, "helpers"  );
+                  
+                  /*this.async(function(){
+                    
+                    if(this.scanner.afterUpdate)
+                    {
+                      this.$.changeLogDialog.toggle();
+                    }
+                  },null,3000);*/
                 },
                 showToast:function(){
                   this.$.toast2.show();
@@ -331,6 +383,27 @@
                   if(gui) openUrl = gui.Shell.openExternal
                   openUrl("https://github.com/kaosat-dev/simple-scan")
                 },
+                openHelp:function(){
+                  this.$.mainDialog.toggle();
+                },
+                checkUpdates:function(){
+                  this.scanner.checkForUpdates();
+                  this.$.updateDialog.toggle();
+                },
+                
+                validateTest:function(){
+                  console.log("validated");
+                  if(this.scanner.updateAvailable)
+                  {
+                    console.log("boogla");
+                    var gui = require('nw.gui');
+                  
+                    var openUrl = window.open;
+                    if(gui) openUrl = gui.Shell.openExternal
+                    openUrl("https://github.com/kaosat-dev/simple-scan")
+                    
+                  }
+                },
                 //filters:
                 round:function (val, precision, method) {
                   precision = precision || 0;
@@ -344,8 +417,18 @@
                   } else {
                       rounder = Math.round;
                   }
-
                   return rounder(val * factor) / factor;
+                },
+                updateTextFilterTest:function(o){
+                
+                  if(!this.scanner) return "";
+                  console.log("bleh",this.scanner.updateAvailable);
+                  if(this.scanner.updateAvailable)
+                  {
+                    return "A new version is available , would you like to go to the downloads page ?";
+                  }else{
+                    return " No new version is available !"
+                  }
                 }
             });
         </script>
