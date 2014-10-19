@@ -1,18 +1,26 @@
-var Vision = require("../src/vision");
+var Minilog=require("minilog");
+var Vision = require("../app/server/vision");
 var cv = require("opencv");
 var Q = require('q');
 var co = require('co');
+var yaml       = require('js-yaml');
+var fs = require('fs');
+
+
+var config = yaml.safeLoad(fs.readFileSync("app/server/config.default.yml", 'utf8'));
 
 var readCamera    = Q.nbind(cv.readImage, cv);
 
+
+
 describe("vision class specs", function() {
-  var vision = new Vision();
+  var vision = new Vision(config);
 
   beforeEach(function() {
   });
 
 
-  /*it("should convert our custom points to opencv points", function() {
+  it("should convert our custom points to opencv points", function() {
       var point = {x:3,y:7,z:2};
       var cvPoint = vision.convertPointToCvPoint( point );
       //no access to opencv point innards, workaround
@@ -42,33 +50,31 @@ describe("vision class specs", function() {
       expect(intersection).toEqual({ x : -2.2205882352941178, y : 0, z : 14.994117647058825 });
   });
   
-  */
-  /*it("can extract laser lines using two input images/matrices", function(done) {
+  it("can extract laser lines using two input images/matrices", function(done) {
     var tgtWidth = 640//160;
     var tgtHeight = 480//120;
+    var debug = false;
+    
     co(function* (){
-
-
     try
     {
-     var imLaser = yield readCamera('testData/calib_camLaser.png');
-     var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
+     var imLaser = yield readCamera('specs/data/calib_camLaser.png');
+     var imNoLaser = yield readCamera('specs/data/calib_camNoLaser.png');
      //imLaser.resize(tgtWidth,tgtHeight);
      //imNoLaser.resize(tgtWidth,tgtHeight);
-
-     var bestMatch = vision.extractLaserLine( imNoLaser, imLaser, true );
+     var laserLine = vision.extractLaserLine( imNoLaser, imLaser, debug );
+     //TODO: how to compare ??
     }
     catch(error)
     {
       console.log("error",error);
+      throw error;
     }
-     //var foo = vision.detectLines3( imNoLaser, imLaser );
-     
      done();
     })();
   });
   
-  
+  /*
   it("can detect laser lines using two input images/matrices", function(done) {
      co(function* (){
 
@@ -89,39 +95,53 @@ describe("vision class specs", function() {
           })();
   });*/
 
-
   it("can extract 3d points from images", function(done) {
+    var debug = false;  
     co(function* (){
       try
       {
-       var imLaser = yield readCamera('testData/calib_camLaser.png');
-       var imNoLaser = yield readCamera('testData/calib_camNoLaser.png');
+       var imLaser = yield readCamera('specs/data/calib_camLaser.png');
+       var imNoLaser = yield readCamera('specs/data/calib_camNoLaser.png');
+  
+       var Laser = require("../app/server/laser");
+       var Camera = require("../app/server/camera");
+       var TurnTable = require("../app/server/turntable");
 
-       var Laser = require("../src/laser");
-       var Camera = require("../src/camera");
-       var TurnTable = require("../src/turntable");
 
-
-       var laser = new Laser();
-       var camera = new Camera();
-       var turnTable = new TurnTable();
+       var laser = new Laser(null, config);
+       var camera = new Camera(1,config);
+       var turnTable = new TurnTable(null, config);
+       
+       
+       Minilog.suggest.clear().deny('camera', 'error')
+        .deny('laser', 'error')
+        .deny('vision', 'error')
+        .deny('turntable', 'error')
+        .deny('scanner', 'error');
+        Minilog.enable();
+       
+       
        //laserOn, laserOff, dpiVertical, lowerLimit, laser, camera, turnTable, model
        laser.pointPosition = { x: -1.84953125, y: 4.6342187500000005, z: 0 };
 
-       var result =[];
-       vision.putPointsFromFrameToCloud( imNoLaser, imLaser, 5,0,laser,camera,turnTable,result );
-       console.log("result", result);
+       var resultModel = {positions:[],colors:[]};
+       var expModel = JSON.parse( fs.readFileSync( 'specs/data/exp_3dExtract.json' ) );
+
+       //laserOff, laserOn,  dpiVertical, lowerLimit, laser, camera, turnTable, model
+       vision.putPointsFromFrameToCloud( imNoLaser, imLaser, 1,0,laser,camera,turnTable,resultModel );
+       expect(resultModel).toEqual( expModel );
+       //fs.writeFileSync(, JSON.stringify(resultModel));
       }
       catch(error)
       {
         console.log("error",error);
+        throw error;
       }
      
       done();
     })();
   });
-  
- 
+
   
 });
 

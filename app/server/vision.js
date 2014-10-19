@@ -255,7 +255,7 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVe
     
   //extract laser line from the two images
   var laserLineIm = this.extractLaserLine(laserOff,laserOn);
-
+  
   //calculate position of laser in cv frame
   //position of the laser line on the back plane in world coordinates
   var cvLaserLinePosition = this.convertPointToCvPoint(laser.pointPosition);
@@ -369,10 +369,8 @@ Vision.prototype.putPointsFromFrameToCloud = function( laserOff, laserOn,  dpiVe
                 break;
             }
         }
-        log.debug(" ");
     }
     log.info("done putPointsFromFrameToCloud: points found:",foundPoints);
-
 }
 
 

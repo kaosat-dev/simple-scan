@@ -62,10 +62,10 @@ var Scanner =function(){
   this.serialPoller = null;
   
     
-  this.laser     = new Laser(this.serial    ,config);
-  this.turnTable = new TurnTable(this.serial,config);
-  this.camera    = new Camera(1,config);
-  this.vision    = new Vision(  config);
+  this.laser     = new Laser( this.serial    ,config );
+  this.turnTable = new TurnTable( this.serial, config );
+  this.camera    = new Camera( 1, config );
+  this.vision    = new Vision( config );
   
   this.laser.sendCommand = this.sendCommand;
   this.turnTable.sendCommand = this.sendCommand;
