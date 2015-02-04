@@ -44,7 +44,7 @@ module.exports = (grunt) ->
 
     nodewebkit:
       options:
-        version: "v0.7.5" #0.8.2 0.6.3 works with polymer but unresolved does not get removed, does not work from 0.7.0 onwards, 0.8.2 works only partially (wrong order of events)
+        version: "v0.10.5"
         build_dir: "_tmp/desktop" # Where the build version of my node-webkit app is saved
         mac: false # We want to build it for mac
         win: false # We want to build it for win

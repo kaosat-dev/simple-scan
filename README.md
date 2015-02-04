@@ -38,7 +38,11 @@ desktop app:
   
 There are /will be packages/installs for [linux]() / [mac]() / [windows](): 
      
-     
+
+To generate an experimental version (only tested on linux) type:
+
+    
+
   
 client/server version:
 ----------------------
@@ -120,6 +124,8 @@ Or rather (better): use BUILD instead of REBUILD as it clears the build folder o
   There are a few "server" side tests  you can run the tests with (depending on your path)
 
         gnode node-modules/jasmine-node/bin/jasmine-node specs/
+        
+  I am currently looking into adding unit tests for the Polymer/ client side components as well...
         
 License:
 ========
